@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Usuarios ----------
+
+enum Rol {
+  ADMIN
+  VENDEDOR
+}
+
+model Usuario {
+  id           String   @id @default(uuid())
+  nombre       String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  rol          Rol      @default(VENDEDOR)
+  activo       Boolean  @default(true)
+  creadoEn     DateTime @default(now()) @map("creado_en")
+
+  ventas Venta[]
+
+  @@map("usuarios")
+}
+
+// ---------- Catálogo ----------
+
+model Categoria {
+  id     String @id @default(uuid())
+  nombre String @unique
+
+  productos Producto[]
+
+  @@map("categorias")
+}
+
+model Producto {
+  id          String   @id @default(uuid())
+  nombre      String
+  descripcion String?
+  precio      Decimal  @db.Decimal(10, 2)
+  imagenUrl   String?  @map("imagen_url")
+  activo      Boolean  @default(true)
+  categoriaId String?  @map("categoria_id")
+  creadoEn    DateTime @default(now()) @map("creado_en")
+
+  categoria  Categoria?     @relation(fields: [categoriaId], references: [id])
+  inventario Inventario?
+  comboItems ComboItem[]
+  detalles   DetalleVenta[]
+
+  @@map("productos")
+}
+
+model Inventario {
+  id            String   @id @default(uuid())
+  productoId    String   @unique @map("producto_id")
+  stockActual   Int      @default(0) @map("stock_actual")
+  stockMinimo   Int      @default(5) @map("stock_minimo")
+  actualizadoEn DateTime @updatedAt @map("actualizado_en")
+
+  producto Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@map("inventario")
+}
+
+// ---------- Combos ----------
+
+model Combo {
+  id          String   @id @default(uuid())
+  nombre      String
+  descripcion String?
+  precioCombo Decimal  @db.Decimal(10, 2) @map("precio_combo")
+  imagenUrl   String?  @map("imagen_url")
+  activo      Boolean  @default(true)
+  creadoEn    DateTime @default(now()) @map("creado_en")
+
+  items    ComboItem[]
+  detalles DetalleVenta[]
+
+  @@map("combos")
+}
+
+model ComboItem {
+  id         String @id @default(uuid())
+  comboId    String @map("combo_id")
+  productoId String @map("producto_id")
+  cantidad   Int    @default(1)
+
+  combo    Combo    @relation(fields: [comboId], references: [id], onDelete: Cascade)
+  producto Producto @relation(fields: [productoId], references: [id])
+
+  @@unique([comboId, productoId])
+  @@map("combo_items")
+}
+
+// ---------- Promociones ----------
+// Empezamos con DOS_POR_UNO y PRECIO_FIJO_COMBO.
+// El enum queda abierto para agregar PORCENTAJE o MONTO_FIJO después sin migrar el modelo.
+
+enum TipoPromocion {
+  DOS_POR_UNO
+  PRECIO_FIJO_COMBO
+  PORCENTAJE
+  MONTO_FIJO
+}
+
+model Promocion {
+  id          String        @id @default(uuid())
+  nombre      String
+  tipo        TipoPromocion
+  valor       Decimal?      @db.Decimal(10, 2)
+  productoId  String?       @map("producto_id")
+  comboId     String?       @map("combo_id")
+  categoriaId String?       @map("categoria_id")
+  fechaInicio DateTime      @map("fecha_inicio")
+  fechaFin    DateTime      @map("fecha_fin")
+  activo      Boolean       @default(true)
+
+  detalles DetalleVenta[]
+
+  @@map("promociones")
+}
+
+// ---------- Ventas ----------
+
+model MetodoPago {
+  id     String  @id @default(uuid())
+  nombre String  @unique
+  activo Boolean @default(true)
+
+  ventas Venta[]
+
+  @@map("metodos_pago")
+}
+
+model Venta {
+  id           String   @id @default(uuid())
+  fecha        DateTime @default(now())
+  total        Decimal  @db.Decimal(10, 2)
+  usuarioId    String   @map("usuario_id")
+  metodoPagoId String   @map("metodo_pago_id")
+
+  usuario    Usuario        @relation(fields: [usuarioId], references: [id])
+  metodoPago MetodoPago     @relation(fields: [metodoPagoId], references: [id])
+  detalles   DetalleVenta[]
+
+  @@map("ventas")
+}
+
+model DetalleVenta {
+  id             String  @id @default(uuid())
+  ventaId        String  @map("venta_id")
+  productoId     String? @map("producto_id")
+  comboId        String? @map("combo_id")
+  promocionId    String? @map("promocion_id")
+  cantidad       Int
+  precioUnitario Decimal @db.Decimal(10, 2) @map("precio_unitario")
+  subtotal       Decimal @db.Decimal(10, 2)
+
+  venta     Venta      @relation(fields: [ventaId], references: [id], onDelete: Cascade)
+  producto  Producto?  @relation(fields: [productoId], references: [id])
+  combo     Combo?     @relation(fields: [comboId], references: [id])
+  promocion Promocion? @relation(fields: [promocionId], references: [id])
+
+  @@map("detalle_venta")
+}
