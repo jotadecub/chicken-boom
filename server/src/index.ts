@@ -6,6 +6,8 @@ import productosRoutes from './routes/productos.routes'
 import inventarioRoutes from './routes/inventario.routes'
 import combosRoutes from './routes/combos.routes';
 import promocionesRoutes from './routes/promociones.routes';
+import metodosPagoRoutes from './routes/metodosPago.routes';
+import ventasRoutes from './routes/ventas.routes';
 
 dotenv.config();
 
@@ -32,6 +34,10 @@ app.use('/api/inventario', inventarioRoutes)
 // Combos y promociones
 app.use('/api/combos', combosRoutes);
 app.use('/api/promociones', promocionesRoutes);
+
+// Metodos de pago y ventas
+app.use('/api/metodos-pago', metodosPagoRoutes);
+app.use('/api/ventas', ventasRoutes);
 
 const PORT = process.env.PORT || 4000;
 
