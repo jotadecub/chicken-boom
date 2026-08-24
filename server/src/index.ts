@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
+import productosRoutes from './routes/productos.routes'
+import inventarioRoutes from './routes/inventario.routes'
 
 dotenv.config();
 
@@ -19,6 +21,8 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/productos', productosRoutes)
+app.use('/api/inventario', inventarioRoutes)
 
 const PORT = process.env.PORT || 4000;
 
