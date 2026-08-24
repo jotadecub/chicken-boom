@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import productosRoutes from './routes/productos.routes'
 import inventarioRoutes from './routes/inventario.routes'
+import combosRoutes from './routes/combos.routes';
+import promocionesRoutes from './routes/promociones.routes';
 
 dotenv.config();
 
@@ -20,9 +22,16 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Autenticacion
 app.use('/api/auth', authRoutes);
+
+// Productos e inventario
 app.use('/api/productos', productosRoutes)
 app.use('/api/inventario', inventarioRoutes)
+
+// Combos y promociones
+app.use('/api/combos', combosRoutes);
+app.use('/api/promociones', promocionesRoutes);
 
 const PORT = process.env.PORT || 4000;
 
