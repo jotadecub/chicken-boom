@@ -8,6 +8,7 @@ import combosRoutes from './routes/combos.routes';
 import promocionesRoutes from './routes/promociones.routes';
 import metodosPagoRoutes from './routes/metodosPago.routes';
 import ventasRoutes from './routes/ventas.routes';
+import usuariosRoutes from './routes/usuarios.routes';
 
 dotenv.config();
 
@@ -24,8 +25,9 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Autenticacion
+// Autenticacion y usuarios
 app.use('/api/auth', authRoutes);
+app.use('/api/usuarios', usuariosRoutes);
 
 // Productos e inventario
 app.use('/api/productos', productosRoutes)
