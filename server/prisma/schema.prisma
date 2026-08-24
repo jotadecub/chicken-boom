@@ -23,7 +23,8 @@ model Usuario {
   activo       Boolean  @default(true)
   creadoEn     DateTime @default(now()) @map("creado_en")
 
-  ventas Venta[]
+  ventas  Venta[]
+  pedidos Pedido[]
 
   @@map("usuarios")
 }
@@ -49,10 +50,10 @@ model Producto {
   categoriaId String?  @map("categoria_id")
   creadoEn    DateTime @default(now()) @map("creado_en")
 
-  categoria  Categoria?     @relation(fields: [categoriaId], references: [id])
-  inventario Inventario?
-  comboItems ComboItem[]
-  detalles   DetalleVenta[]
+  categoria    Categoria?    @relation(fields: [categoriaId], references: [id])
+  inventario   Inventario?
+  comboItems   ComboItem[]
+  pedidoItems  PedidoItem[]
 
   @@map("productos")
 }
@@ -80,8 +81,8 @@ model Combo {
   activo      Boolean  @default(true)
   creadoEn    DateTime @default(now()) @map("creado_en")
 
-  items    ComboItem[]
-  detalles DetalleVenta[]
+  items       ComboItem[]
+  pedidoItems PedidoItem[]
 
   @@map("combos")
 }
@@ -100,8 +101,6 @@ model ComboItem {
 }
 
 // ---------- Promociones ----------
-// Empezamos con DOS_POR_UNO y PRECIO_FIJO_COMBO.
-// El enum queda abierto para agregar PORCENTAJE o MONTO_FIJO después sin migrar el modelo.
 
 enum TipoPromocion {
   DOS_POR_UNO
@@ -122,12 +121,79 @@ model Promocion {
   fechaFin    DateTime      @map("fecha_fin")
   activo      Boolean       @default(true)
 
-  detalles DetalleVenta[]
+  pedidoItems PedidoItem[]
 
   @@map("promociones")
 }
 
-// ---------- Ventas ----------
+// ---------- Mesas ----------
+
+enum EstadoMesa {
+  LIBRE
+  OCUPADA
+}
+
+model Mesa {
+  id      String     @id @default(uuid())
+  numero  Int        @unique
+  estado  EstadoMesa @default(LIBRE)
+
+  pedidos Pedido[]
+
+  @@map("mesas")
+}
+
+// ---------- Pedidos (lo que ocurre en cocina) ----------
+
+enum TipoEntrega {
+  MESA
+  MOSTRADOR
+}
+
+enum EstadoPedido {
+  PENDIENTE
+  EN_PREPARACION
+  LISTO
+  ENTREGADO
+  CANCELADO
+}
+
+model Pedido {
+  id          String       @id @default(uuid())
+  mesaId      String?      @map("mesa_id")
+  tipoEntrega TipoEntrega  @map("tipo_entrega")
+  estado      EstadoPedido @default(PENDIENTE)
+  usuarioId   String       @map("usuario_id")
+  ventaId     String?      @map("venta_id")
+  creadoEn    DateTime     @default(now()) @map("creado_en")
+
+  mesa    Mesa?        @relation(fields: [mesaId], references: [id])
+  usuario Usuario      @relation(fields: [usuarioId], references: [id])
+  venta   Venta?       @relation(fields: [ventaId], references: [id])
+  items   PedidoItem[]
+
+  @@map("pedidos")
+}
+
+model PedidoItem {
+  id             String  @id @default(uuid())
+  pedidoId       String  @map("pedido_id")
+  productoId     String? @map("producto_id")
+  comboId        String? @map("combo_id")
+  promocionId    String? @map("promocion_id")
+  cantidad       Int
+  precioUnitario Decimal @db.Decimal(10, 2) @map("precio_unitario")
+  subtotal       Decimal @db.Decimal(10, 2)
+
+  pedido    Pedido     @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  producto  Producto?  @relation(fields: [productoId], references: [id])
+  combo     Combo?     @relation(fields: [comboId], references: [id])
+  promocion Promocion? @relation(fields: [promocionId], references: [id])
+
+  @@map("pedido_items")
+}
+
+// ---------- Ventas (el registro de pago / factura) ----------
 
 model MetodoPago {
   id     String  @id @default(uuid())
@@ -140,33 +206,16 @@ model MetodoPago {
 }
 
 model Venta {
-  id           String   @id @default(uuid())
-  fecha        DateTime @default(now())
-  total        Decimal  @db.Decimal(10, 2)
-  usuarioId    String   @map("usuario_id")
-  metodoPagoId String   @map("metodo_pago_id")
+  id            String   @id @default(uuid())
+  fecha         DateTime @default(now())
+  total         Decimal  @db.Decimal(10, 2)
+  nombreCliente String?  @map("nombre_cliente")
+  usuarioId     String   @map("usuario_id")
+  metodoPagoId  String   @map("metodo_pago_id")
 
-  usuario    Usuario        @relation(fields: [usuarioId], references: [id])
-  metodoPago MetodoPago     @relation(fields: [metodoPagoId], references: [id])
-  detalles   DetalleVenta[]
+  usuario    Usuario    @relation(fields: [usuarioId], references: [id])
+  metodoPago MetodoPago @relation(fields: [metodoPagoId], references: [id])
+  pedidos    Pedido[]
 
   @@map("ventas")
-}
-
-model DetalleVenta {
-  id             String  @id @default(uuid())
-  ventaId        String  @map("venta_id")
-  productoId     String? @map("producto_id")
-  comboId        String? @map("combo_id")
-  promocionId    String? @map("promocion_id")
-  cantidad       Int
-  precioUnitario Decimal @db.Decimal(10, 2) @map("precio_unitario")
-  subtotal       Decimal @db.Decimal(10, 2)
-
-  venta     Venta      @relation(fields: [ventaId], references: [id], onDelete: Cascade)
-  producto  Producto?  @relation(fields: [productoId], references: [id])
-  combo     Combo?     @relation(fields: [comboId], references: [id])
-  promocion Promocion? @relation(fields: [promocionId], references: [id])
-
-  @@map("detalle_venta")
 }
