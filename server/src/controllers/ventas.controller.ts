@@ -1,197 +1,97 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { Prisma, TipoPromocion } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-
-const itemVentaSchema = z.object({
-  tipo: z.enum(['producto', 'combo']),
-  id: z.string().uuid(),
-  cantidad: z.number().int().positive(),
-});
+import { crearPedidoInterno, liberarMesaSiNoHayPedidosActivos } from './pedidos.controller';
 
 const crearVentaSchema = z.object({
+  pedidoIds: z.array(z.string().uuid()).min(1, 'Debes indicar al menos un pedido a pagar'),
   metodoPagoId: z.string().uuid(),
-  items: z.array(itemVentaSchema).min(1, 'La venta debe tener al menos un ítem'),
+  nombreCliente: z.string().min(1).optional(),
 });
 
-// Busca la promoción activa (vigente hoy) que aplique a un producto o combo específico,
-// ya sea de forma directa (productoId/comboId) o a través de su categoría.
-async function buscarPromocionAplicable(opts: {
-  productoId?: string;
-  comboId?: string;
-  categoriaId?: string | null;
+const ventaRapidaSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        tipo: z.enum(['producto', 'combo']),
+        id: z.string().uuid(),
+        cantidad: z.number().int().positive(),
+      })
+    )
+    .min(1),
+  metodoPagoId: z.string().uuid(),
+  nombreCliente: z.string().min(1).optional(),
+});
+
+// Lógica pura de pago, reutilizada por crearVenta y ventaRapidaMostrador
+async function crearVentaInterna(datos: {
+  pedidoIds: string[];
+  metodoPagoId: string;
+  nombreCliente?: string;
+  usuarioId: string;
 }) {
-  const ahora = new Date();
+  const { pedidoIds, metodoPagoId, nombreCliente, usuarioId } = datos;
 
-  const promocion = await prisma.promocion.findFirst({
-    where: {
-      activo: true,
-      fechaInicio: { lte: ahora },
-      fechaFin: { gte: ahora },
-      OR: [
-        opts.productoId ? { productoId: opts.productoId } : undefined,
-        opts.comboId ? { comboId: opts.comboId } : undefined,
-        opts.categoriaId ? { categoriaId: opts.categoriaId } : undefined,
-      ].filter(Boolean) as Prisma.PromocionWhereInput[],
-    },
-    orderBy: { fechaInicio: 'desc' },
+  return prisma.$transaction(async (tx) => {
+    const pedidos = await tx.pedido.findMany({
+      where: { id: { in: pedidoIds } },
+      include: { items: true },
+    });
+
+    if (pedidos.length !== pedidoIds.length) {
+      throw new Error('Uno o más pedidos no existen');
+    }
+    const yaPagado = pedidos.find((p) => p.ventaId !== null);
+    if (yaPagado) {
+      throw new Error(`El pedido ${yaPagado.id} ya fue pagado anteriormente`);
+    }
+    const cancelado = pedidos.find((p) => p.estado === 'CANCELADO');
+    if (cancelado) {
+      throw new Error(`El pedido ${cancelado.id} está cancelado y no se puede cobrar`);
+    }
+
+    const total = pedidos.reduce(
+      (acc, p) => acc + p.items.reduce((s, i) => s + Number(i.subtotal), 0),
+      0
+    );
+
+    const nuevaVenta = await tx.venta.create({
+      data: { total, nombreCliente, usuarioId, metodoPagoId },
+    });
+
+    const mesasAfectadas = new Set(pedidos.filter((p) => p.mesaId).map((p) => p.mesaId as string));
+
+    await tx.pedido.updateMany({
+      where: { id: { in: pedidoIds } },
+      data: { ventaId: nuevaVenta.id, estado: 'ENTREGADO' },
+    });
+
+    for (const mesaId of mesasAfectadas) {
+      await liberarMesaSiNoHayPedidosActivos(tx, mesaId);
+    }
+
+    return tx.venta.findUnique({
+      where: { id: nuevaVenta.id },
+      include: {
+        pedidos: {
+          include: { items: { include: { producto: true, combo: true, promocion: true } }, mesa: true },
+        },
+        metodoPago: true,
+        usuario: { select: { id: true, nombre: true } },
+      },
+    });
   });
-
-  return promocion;
 }
 
-// Calcula el subtotal de una línea aplicando la promoción, si hay alguna.
-function calcularSubtotal(
-  precioUnitario: number,
-  cantidad: number,
-  promocion: { tipo: TipoPromocion; valor: Prisma.Decimal | null } | null
-): number {
-  if (!promocion) return precioUnitario * cantidad;
-
-  switch (promocion.tipo) {
-    case 'DOS_POR_UNO':
-      // Por cada 2 unidades, se cobra 1. Ej: 5 unidades -> se cobran 3 (2 pares gratis + 1 impar).
-      return Math.ceil(cantidad / 2) * precioUnitario;
-
-    case 'PRECIO_FIJO_COMBO':
-      // El valor de la promoción reemplaza el precio total del combo (no se multiplica por cantidad
-      // porque un "combo" ya es una unidad completa; si piden 2 combos, se cobra 2x el precio fijo).
-      return Number(promocion.valor) * cantidad;
-
-    case 'PORCENTAJE':
-      return precioUnitario * cantidad * (1 - Number(promocion.valor) / 100);
-
-    case 'MONTO_FIJO':
-      return Math.max(0, precioUnitario * cantidad - Number(promocion.valor) * cantidad);
-
-    default:
-      return precioUnitario * cantidad;
-  }
-}
-
-// POST /api/ventas — requiere auth (ADMIN o VENDEDOR)
+// POST /api/ventas — cierra (paga) uno o varios pedidos ya existentes
 export async function crearVenta(req: Request, res: Response) {
   const parsed = crearVentaSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: 'Datos inválidos', detalles: parsed.error.flatten() });
   }
 
-  const { metodoPagoId, items } = parsed.data;
-
   try {
-    const venta = await prisma.$transaction(async (tx) => {
-      let total = 0;
-      const detalles: Prisma.DetalleVentaCreateManyVentaInput[] = [];
-      // Acumulamos cuánto stock descontar por producto (un combo puede repetir productos
-      // entre varias líneas, así que sumamos todo antes de aplicar el descuento).
-      const descuentosStock = new Map<string, number>();
-
-      for (const item of items) {
-        if (item.tipo === 'producto') {
-          const producto = await tx.producto.findUnique({
-            where: { id: item.id },
-            include: { inventario: true },
-          });
-
-          if (!producto || !producto.activo) {
-            throw new Error(`Producto ${item.id} no existe o está inactivo`);
-          }
-          if (!producto.inventario || producto.inventario.stockActual < item.cantidad) {
-            throw new Error(`Stock insuficiente para "${producto.nombre}"`);
-          }
-
-          const promocion = await buscarPromocionAplicable({
-            productoId: producto.id,
-            categoriaId: producto.categoriaId,
-          });
-
-          const precioUnitario = Number(producto.precio);
-          const subtotal = calcularSubtotal(precioUnitario, item.cantidad, promocion);
-
-          detalles.push({
-            productoId: producto.id,
-            promocionId: promocion?.id ?? null,
-            cantidad: item.cantidad,
-            precioUnitario,
-            subtotal,
-          });
-
-          descuentosStock.set(
-            producto.id,
-            (descuentosStock.get(producto.id) ?? 0) + item.cantidad
-          );
-          total += subtotal;
-        } else {
-          const combo = await tx.combo.findUnique({
-            where: { id: item.id },
-            include: { items: { include: { producto: { include: { inventario: true } } } } },
-          });
-
-          if (!combo || !combo.activo) {
-            throw new Error(`Combo ${item.id} no existe o está inactivo`);
-          }
-
-          // Verificamos stock suficiente de CADA producto que compone el combo.
-          for (const comboItem of combo.items) {
-            const necesario = comboItem.cantidad * item.cantidad;
-            const disponible = comboItem.producto.inventario?.stockActual ?? 0;
-            if (disponible < necesario) {
-              throw new Error(
-                `Stock insuficiente de "${comboItem.producto.nombre}" para armar el combo "${combo.nombre}"`
-              );
-            }
-          }
-
-          const promocion = await buscarPromocionAplicable({ comboId: combo.id });
-
-          const precioUnitario = Number(combo.precioCombo);
-          const subtotal = calcularSubtotal(precioUnitario, item.cantidad, promocion);
-
-          detalles.push({
-            comboId: combo.id,
-            promocionId: promocion?.id ?? null,
-            cantidad: item.cantidad,
-            precioUnitario,
-            subtotal,
-          });
-
-          for (const comboItem of combo.items) {
-            const necesario = comboItem.cantidad * item.cantidad;
-            descuentosStock.set(
-              comboItem.productoId,
-              (descuentosStock.get(comboItem.productoId) ?? 0) + necesario
-            );
-          }
-          total += subtotal;
-        }
-      }
-
-      // Creamos la venta y su detalle
-      const nuevaVenta = await tx.venta.create({
-        data: {
-          total,
-          usuarioId: req.usuario!.id,
-          metodoPagoId,
-          detalles: { createMany: { data: detalles } },
-        },
-        include: {
-          detalles: { include: { producto: true, combo: true, promocion: true } },
-          metodoPago: true,
-          usuario: { select: { id: true, nombre: true } },
-        },
-      });
-
-      // Descontamos el inventario acumulado
-      for (const [productoId, cantidad] of descuentosStock) {
-        await tx.inventario.update({
-          where: { productoId },
-          data: { stockActual: { decrement: cantidad } },
-        });
-      }
-
-      return nuevaVenta;
-    });
-
+    const venta = await crearVentaInterna({ ...parsed.data, usuarioId: req.usuario!.id });
     return res.status(201).json(venta);
   } catch (error) {
     const mensaje = error instanceof Error ? error.message : 'Error al procesar la venta';
@@ -199,11 +99,38 @@ export async function crearVenta(req: Request, res: Response) {
   }
 }
 
-// GET /api/ventas — historial, requiere auth
+// POST /api/ventas/rapida — atajo para mostrador: crea el pedido y lo paga en un solo paso
+export async function ventaRapidaMostrador(req: Request, res: Response) {
+  const parsed = ventaRapidaSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Datos inválidos', detalles: parsed.error.flatten() });
+  }
+
+  const { items, metodoPagoId, nombreCliente } = parsed.data;
+  const usuarioId = req.usuario!.id;
+
+  try {
+    const pedido = await crearPedidoInterno({ tipoEntrega: 'MOSTRADOR', items, usuarioId });
+    const venta = await crearVentaInterna({
+      pedidoIds: [pedido.id],
+      metodoPagoId,
+      nombreCliente,
+      usuarioId,
+    });
+    return res.status(201).json(venta);
+  } catch (error) {
+    const mensaje = error instanceof Error ? error.message : 'Error al procesar la venta rápida';
+    return res.status(400).json({ error: mensaje });
+  }
+}
+
+// GET /api/ventas — historial de ventas/facturas
 export async function listarVentas(req: Request, res: Response) {
   const ventas = await prisma.venta.findMany({
     include: {
-      detalles: { include: { producto: true, combo: true, promocion: true } },
+      pedidos: {
+        include: { items: { include: { producto: true, combo: true, promocion: true } }, mesa: true },
+      },
       metodoPago: true,
       usuario: { select: { id: true, nombre: true } },
     },
@@ -212,7 +139,7 @@ export async function listarVentas(req: Request, res: Response) {
   return res.json(ventas);
 }
 
-// GET /api/ventas/resumen — total vendido hoy (para el contador del POS)
+// GET /api/ventas/resumen — total vendido hoy
 export async function resumenVentasHoy(req: Request, res: Response) {
   const inicioDia = new Date();
   inicioDia.setHours(0, 0, 0, 0);

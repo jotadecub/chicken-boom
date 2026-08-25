@@ -1,11 +1,19 @@
 import { Router } from 'express';
-import { crearVenta, listarVentas, resumenVentasHoy } from '../controllers/ventas.controller';
+import {
+  crearVenta,
+  ventaRapidaMostrador,
+  listarVentas,
+  resumenVentasHoy,
+} from '../controllers/ventas.controller';
 import { requireAuth, requireRole } from '../middlewares/auth';
 
 const router = Router();
 
-router.post('/', requireAuth, requireRole('ADMIN', 'VENDEDOR'), crearVenta);
-router.get('/', requireAuth, requireRole('ADMIN', 'VENDEDOR'), listarVentas);
-router.get('/resumen', requireAuth, requireRole('ADMIN', 'VENDEDOR'), resumenVentasHoy);
+router.use(requireAuth, requireRole('ADMIN', 'VENDEDOR'));
+
+router.post('/', crearVenta);
+router.post('/rapida', ventaRapidaMostrador);
+router.get('/', listarVentas);
+router.get('/resumen', resumenVentasHoy);
 
 export default router;
