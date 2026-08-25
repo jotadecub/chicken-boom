@@ -11,6 +11,7 @@ import ventasRoutes from './routes/ventas.routes';
 import usuariosRoutes from './routes/usuarios.routes';
 import mesasRoutes from './routes/mesas.routes'
 import pedidosRoutes from './routes/pedidos.routes';
+import categoriasRoutes from './routes/categorias.routes'
 
 dotenv.config();
 
@@ -34,6 +35,7 @@ app.use('/api/usuarios', usuariosRoutes);
 // Productos e inventario
 app.use('/api/productos', productosRoutes)
 app.use('/api/inventario', inventarioRoutes)
+app.use('/api/categorias', categoriasRoutes)
 
 // Combos y promociones
 app.use('/api/combos', combosRoutes);
