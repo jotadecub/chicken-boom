@@ -1,6 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { urlImagen } from '@/lib/config';
 
 interface Props {
   nombre: string;
@@ -31,7 +32,7 @@ export default function ProductoCard({
     >
       <div className="flex aspect-square items-center justify-center bg-muted">
         {imagenUrl ? (
-          <img src={imagenUrl} alt={nombre} className="h-full w-full object-cover" />
+          <img src={urlImagen(imagenUrl)} alt={nombre} className="h-full w-full object-cover" />
         ) : (
           <span className="text-4xl">{esCombo ? '🎁' : '🍗'}</span>
         )}

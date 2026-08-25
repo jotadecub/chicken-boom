@@ -33,6 +33,7 @@ import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import { obtenerProductos, obtenerCombos } from '@/api/catalogo';
 import { crearCombo, actualizarCombo, desactivarCombo, type ItemComboInput } from '@/api/combos';
 import type { Combo } from '@/types';
+import SelectorImagen from '@/components/pos/SelectorImagen';
 
 interface FormState {
   nombre: string;
@@ -252,12 +253,13 @@ export default function Combos() {
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="imagenUrl">URL de imagen</Label>
-                <Input
-                  id="imagenUrl"
-                  value={form.imagenUrl}
-                  onChange={(e) => setForm((f) => ({ ...f, imagenUrl: e.target.value }))}
-                  placeholder="https://..."
-                />
+                <div className="flex flex-col gap-2">
+                  <Label>Imagen</Label>
+                  <SelectorImagen
+                    valor={form.imagenUrl}
+                    onChange={(url) => setForm((f) => ({ ...f, imagenUrl: url }))}
+                  />
+                </div>
               </div>
             </div>
 
