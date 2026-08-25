@@ -1,3 +1,4 @@
+import path from 'path';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -12,6 +13,7 @@ import usuariosRoutes from './routes/usuarios.routes';
 import mesasRoutes from './routes/mesas.routes'
 import pedidosRoutes from './routes/pedidos.routes';
 import categoriasRoutes from './routes/categorias.routes'
+import imagenesRoutes from './routes/imagenes.routes';
 
 dotenv.config();
 
@@ -32,8 +34,12 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuariosRoutes);
 
-// Productos e inventario
+// Productos uploads e imagenes
 app.use('/api/productos', productosRoutes)
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/api/imagenes', imagenesRoutes);
+
+// Inventario y categorias
 app.use('/api/inventario', inventarioRoutes)
 app.use('/api/categorias', categoriasRoutes)
 
