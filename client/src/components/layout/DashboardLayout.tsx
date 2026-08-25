@@ -3,12 +3,14 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/auth';
 import { cn } from '@/lib/utils';
 import { LogOut, ShoppingCart, Package, Users, Tag, Gift, Table2 } from 'lucide-react';
+import { Package2 } from 'lucide-react';
 
 const navItems = [
   { to: '/dashboard/ventas', label: 'Ventas', icon: ShoppingCart, soloAdmin: false },
   { to: '/dashboard/mesas', label: 'Mesas', icon: Table2, soloAdmin: false },
   { to: '/dashboard/inventario', label: 'Inventario', icon: Package, soloAdmin: false },
   { to: '/dashboard/productos', label: 'Productos', icon: Tag, soloAdmin: true },
+  { to: '/dashboard/combos', label: 'Combos', icon: Package2, soloAdmin: true },
   { to: '/dashboard/promociones', label: 'Promociones', icon: Gift, soloAdmin: true },
   { to: '/dashboard/usuarios', label: 'Usuarios', icon: Users, soloAdmin: true },
 ];

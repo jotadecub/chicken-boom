@@ -10,6 +10,7 @@ import Inventario from '@/pages/dashboard/Inventario';
 import Productos from '@/pages/dashboard/Productos';
 import Promociones from '@/pages/dashboard/Promociones';
 import Usuarios from '@/pages/dashboard/Usuarios';
+import Combos from '@/pages/dashboard/Combos';
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ export default function App() {
                 <Route path="/dashboard/productos" element={<Productos />} />
                 <Route path="/dashboard/promociones" element={<Promociones />} />
                 <Route path="/dashboard/usuarios" element={<Usuarios />} />
+                <Route path="/dashboard/combos" element={<Combos />} />
               </Route>
             </Route>
           </Route>
