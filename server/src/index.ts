@@ -9,6 +9,7 @@ import promocionesRoutes from './routes/promociones.routes';
 import metodosPagoRoutes from './routes/metodosPago.routes';
 import ventasRoutes from './routes/ventas.routes';
 import usuariosRoutes from './routes/usuarios.routes';
+import mesasRoutes from './routes/mesas.routes'
 
 dotenv.config();
 
@@ -40,6 +41,9 @@ app.use('/api/promociones', promocionesRoutes);
 // Metodos de pago y ventas
 app.use('/api/metodos-pago', metodosPagoRoutes);
 app.use('/api/ventas', ventasRoutes);
+
+// Mesas
+app.use('/api/mesas', mesasRoutes);
 
 const PORT = process.env.PORT || 4000;
 
