@@ -13,6 +13,16 @@ export interface CrearVentaInput {
   nombreCliente?: string;
 }
 
+export interface FiltroVentas {
+  fechaInicio?: string;
+  fechaFin?: string;
+}
+
+export async function obtenerVentas(filtro?: FiltroVentas): Promise<Venta[]> {
+  const { data } = await api.get<Venta[]>('/ventas', { params: filtro });
+  return data;
+}
+
 export async function ventaRapidaMostrador(input: VentaRapidaInput): Promise<Venta> {
   const { data } = await api.post<Venta>('/ventas/rapida', input);
   return data;

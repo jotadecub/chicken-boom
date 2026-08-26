@@ -11,6 +11,7 @@ import Productos from '@/pages/dashboard/Productos';
 import Promociones from '@/pages/dashboard/Promociones';
 import Usuarios from '@/pages/dashboard/Usuarios';
 import Combos from '@/pages/dashboard/Combos';
+import HistorialVentas from '@/pages/dashboard/HistorialVentas';
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ export default function App() {
 
               <Route element={<ProtectedRoute rolesPermitidos={['ADMIN']} />}>
                 <Route path="/dashboard/productos" element={<Productos />} />
+                <Route path="/dashboard/historial" element={<HistorialVentas />} />
                 <Route path="/dashboard/promociones" element={<Promociones />} />
                 <Route path="/dashboard/usuarios" element={<Usuarios />} />
                 <Route path="/dashboard/combos" element={<Combos />} />
