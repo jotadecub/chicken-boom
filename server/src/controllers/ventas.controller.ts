@@ -124,9 +124,22 @@ export async function ventaRapidaMostrador(req: Request, res: Response) {
   }
 }
 
-// GET /api/ventas — historial de ventas/facturas
+import { Prisma } from '@prisma/client';
+
+// GET /api/ventas — historial de ventas/facturas, con filtro opcional por rango de fechas
 export async function listarVentas(req: Request, res: Response) {
+  const { fechaInicio, fechaFin } = req.query as { fechaInicio?: string; fechaFin?: string };
+
+  const where: Prisma.VentaWhereInput = {};
+
+  if (fechaInicio || fechaFin) {
+    where.fecha = {};
+    if (fechaInicio) where.fecha.gte = new Date(`${fechaInicio}T00:00:00`);
+    if (fechaFin) where.fecha.lte = new Date(`${fechaFin}T23:59:59.999`);
+  }
+
   const ventas = await prisma.venta.findMany({
+    where,
     include: {
       pedidos: {
         include: { items: { include: { producto: true, combo: true, promocion: true } }, mesa: true },
