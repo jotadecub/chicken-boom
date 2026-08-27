@@ -12,7 +12,7 @@ export async function listarMesas(req: Request, res: Response) {
     orderBy: { numero: 'asc' },
     include: {
       pedidos: {
-        where: { estado: { not: 'ENTREGADO' }, ventaId: null },
+        where: { estado: { notIn: ['ENTREGADO', 'CANCELADO'] }, ventaId: null },
         select: { id: true, estado: true, creadoEn: true },
       },
     },
