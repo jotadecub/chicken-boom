@@ -1,9 +1,21 @@
+import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/auth';
 import { cn } from '@/lib/utils';
-import { LogOut, ShoppingCart, Package, Users, Tag, Gift, Table2, History } from 'lucide-react';
-import { Package2 } from 'lucide-react';
+import {
+  LogOut,
+  ShoppingCart,
+  Package,
+  Package2,
+  Users,
+  Tag,
+  Gift,
+  Table2,
+  History,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 
 const navItems = [
   { to: '/dashboard/ventas', label: 'Ventas', icon: ShoppingCart, soloAdmin: false },
@@ -19,6 +31,7 @@ const navItems = [
 export default function DashboardLayout() {
   const { usuario, logout } = useAuthStore();
   const navigate = useNavigate();
+  const [colapsada, setColapsada] = useState(false);
 
   function handleLogout() {
     logout();
@@ -27,12 +40,29 @@ export default function DashboardLayout() {
 
   return (
     <div className="flex min-h-svh">
-      <aside className="flex w-60 flex-col border-r bg-card">
-        <div className="border-b p-4">
-          <h1 className="text-lg font-bold">🍗 Chicken Boom</h1>
-          <p className="text-xs text-muted-foreground">
-            {usuario?.nombre} · {usuario?.rol}
-          </p>
+      <aside
+        className={cn(
+          'flex flex-col border-r bg-card transition-all duration-200',
+          colapsada ? 'w-16' : 'w-60'
+        )}
+      >
+        <div className="flex items-center justify-between border-b p-4">
+          {!colapsada && (
+            <div className="overflow-hidden">
+              <h1 className="truncate text-lg font-bold">🍗 Chicken Boom</h1>
+              <p className="truncate text-xs text-muted-foreground">
+                {usuario?.nombre} · {usuario?.rol}
+              </p>
+            </div>
+          )}
+          <Button
+            size="icon"
+            variant="ghost"
+            className="shrink-0"
+            onClick={() => setColapsada((c) => !c)}
+          >
+            {colapsada ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </Button>
         </div>
 
         <nav className="flex-1 space-y-1 p-2">
@@ -42,25 +72,32 @@ export default function DashboardLayout() {
               <NavLink
                 key={item.to}
                 to={item.to}
+                title={colapsada ? item.label : undefined}
                 className={({ isActive }) =>
                   cn(
                     'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                    colapsada && 'justify-center px-2',
                     isActive
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:bg-muted'
                   )
                 }
               >
-                <item.icon className="h-4 w-4" />
-                {item.label}
+                <item.icon className="h-4 w-4 shrink-0" />
+                {!colapsada && item.label}
               </NavLink>
             ))}
         </nav>
 
         <div className="border-t p-2">
-          <Button variant="ghost" className="w-full justify-start gap-2" onClick={handleLogout}>
-            <LogOut className="h-4 w-4" />
-            Cerrar sesión
+          <Button
+            variant="ghost"
+            className={cn('w-full gap-2', colapsada ? 'justify-center px-2' : 'justify-start')}
+            onClick={handleLogout}
+            title={colapsada ? 'Cerrar sesión' : undefined}
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            {!colapsada && 'Cerrar sesión'}
           </Button>
         </div>
       </aside>

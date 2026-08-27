@@ -35,6 +35,7 @@ import { obtenerCategorias, crearCategoria } from '@/api/categorias';
 import { crearProducto, actualizarProducto, desactivarProducto } from '@/api/productos';
 import type { Producto } from '@/types';
 import SelectorImagen from '@/components/pos/SelectorImagen';
+import { urlImagen } from '@/lib/config';
 
 interface FormState {
   nombre: string;
@@ -168,6 +169,7 @@ export default function Productos() {
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-12"></TableHead>
             <TableHead>Nombre</TableHead>
             <TableHead>Categoría</TableHead>
             <TableHead className="text-right">Precio</TableHead>
@@ -179,6 +181,19 @@ export default function Productos() {
         <TableBody>
           {productos?.map((producto) => (
             <TableRow key={producto.id}>
+              <TableCell>
+                <div className="h-10 w-10 overflow-hidden rounded-md border bg-muted">
+                  {producto.imagenUrl ? (
+                    <img
+                      src={urlImagen(producto.imagenUrl)}
+                      alt={producto.nombre}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs">🍗</div>
+                  )}
+                </div>
+              </TableCell>
               <TableCell className="font-medium">{producto.nombre}</TableCell>
               <TableCell className="text-muted-foreground">
                 {producto.categoria?.nombre ?? '—'}
@@ -213,7 +228,7 @@ export default function Productos() {
       </Table>
 
       <Dialog open={dialogAbierto} onOpenChange={(open) => !open && cerrarDialogo()}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] w-[30vw] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{productoEditando ? 'Editar producto' : 'Nuevo producto'}</DialogTitle>
           </DialogHeader>
@@ -237,26 +252,24 @@ export default function Productos() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="precio">Precio</Label>
+              <Input
+                id="precio"
+                type="number"
+                min={0}
+                value={form.precio}
+                onChange={(e) => setForm((f) => ({ ...f, precio: e.target.value }))}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="imagenUrl">Imagen</Label>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="precio">Precio</Label>
-                <Input
-                  id="precio"
-                  type="number"
-                  min={0}
-                  value={form.precio}
-                  onChange={(e) => setForm((f) => ({ ...f, precio: e.target.value }))}
+                <SelectorImagen
+                  valor={form.imagenUrl}
+                  onChange={(url) => setForm((f) => ({ ...f, imagenUrl: url }))}
                 />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="imagenUrl">URL de imagen</Label>
-                <div className="flex flex-col gap-2">
-                  <Label>Imagen</Label>
-                  <SelectorImagen
-                    valor={form.imagenUrl}
-                    onChange={(url) => setForm((f) => ({ ...f, imagenUrl: url }))}
-                  />
-                </div>
               </div>
             </div>
 

@@ -25,6 +25,8 @@ import CarritoPanel from '@/components/pos/CarritoPanel';
 import { obtenerProductos, obtenerCombos, obtenerMetodosPago } from '@/api/catalogo';
 import { ventaRapidaMostrador } from '@/api/ventas';
 import { useCarritoStore } from '@/store/carrito';
+import FiltrosProductos from '@/components/pos/FiltrosProductos';
+import { obtenerCategorias } from '@/api/categorias';
 
 type Categoria = 'productos' | 'combos';
 
@@ -33,6 +35,11 @@ export default function Ventas() {
   const [dialogAbierto, setDialogAbierto] = useState(false);
   const [metodoPagoId, setMetodoPagoId] = useState('');
   const [nombreCliente, setNombreCliente] = useState('');
+  const [categoriaId, setCategoriaId] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState('');
+
+
+  const { data: categorias } = useQuery({ queryKey: ['categorias'], queryFn: obtenerCategorias });
 
   const queryClient = useQueryClient();
   const { items, limpiar } = useCarritoStore();
@@ -95,6 +102,11 @@ export default function Ventas() {
 
   const cargando = categoria === 'productos' ? cargandoProductos : cargandoCombos;
 
+  const productosFiltrados = productos
+    ?.filter((p) => p.activo)
+    .filter((p) => !categoriaId || p.categoriaId === categoriaId)
+    .filter((p) => p.nombre.toLowerCase().includes(busqueda.toLowerCase()));
+
   return (
     <div className="flex h-full gap-6">
       <div className="flex flex-1 flex-col gap-4">
@@ -110,9 +122,19 @@ export default function Ventas() {
 
         {cargando && <p className="text-muted-foreground">Cargando...</p>}
 
+        {categoria === 'productos' && (
+          <FiltrosProductos
+            categorias={categorias ?? []}
+            categoriaSeleccionada={categoriaId}
+            onCategoriaChange={setCategoriaId}
+            busqueda={busqueda}
+            onBusquedaChange={setBusqueda}
+          />
+        )}
+
         <div className="grid grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4">
           {categoria === 'productos' &&
-            productos
+            productosFiltrados
               ?.filter((p) => p.activo)
               .map((producto) => (
                 <ProductoCard

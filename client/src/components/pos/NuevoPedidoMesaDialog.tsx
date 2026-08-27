@@ -15,6 +15,8 @@ import { Badge } from '@/components/ui/badge';
 import ProductoCard from './ProductoCard';
 import { obtenerProductos, obtenerCombos } from '@/api/catalogo';
 import { crearPedido } from '@/api/pedidos';
+import FiltrosProductos from '@/components/pos/FiltrosProductos';
+import { obtenerCategorias } from '@/api/categorias';
 
 interface ItemLocal {
   tipo: 'producto' | 'combo';
@@ -34,9 +36,17 @@ export default function NuevoPedidoMesaDialog({ mesaId, numeroMesa, open, onOpen
   const [categoria, setCategoria] = useState<'productos' | 'combos'>('productos');
   const [items, setItems] = useState<ItemLocal[]>([]);
   const queryClient = useQueryClient();
+  const [categoriaId, setCategoriaId] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState('');
 
+  const { data: categorias } = useQuery({ queryKey: ['categorias'], queryFn: obtenerCategorias });
   const { data: productos } = useQuery({ queryKey: ['productos'], queryFn: obtenerProductos });
   const { data: combos } = useQuery({ queryKey: ['combos'], queryFn: obtenerCombos });
+
+  const productosFiltrados = productos
+    ?.filter((p) => p.activo)
+    .filter((p) => !categoriaId || p.categoriaId === categoriaId)
+    .filter((p) => p.nombre.toLowerCase().includes(busqueda.toLowerCase()));
 
   function agregar(tipo: 'producto' | 'combo', id: string, nombre: string) {
     setItems((prev) => {
@@ -85,7 +95,7 @@ export default function NuevoPedidoMesaDialog({ mesaId, numeroMesa, open, onOpen
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="flex max-h-[80vh] w-[80vw] max-w-4xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Nuevo pedido — Mesa {numeroMesa}</DialogTitle>
         </DialogHeader>
@@ -97,9 +107,19 @@ export default function NuevoPedidoMesaDialog({ mesaId, numeroMesa, open, onOpen
           </TabsList>
         </Tabs>
 
-        <div className="grid max-h-64 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
+        {categoria === 'productos' && (
+          <FiltrosProductos
+            categorias={categorias ?? []}
+            categoriaSeleccionada={categoriaId}
+            onCategoriaChange={setCategoriaId}
+            busqueda={busqueda}
+            onBusquedaChange={setBusqueda}
+          />
+        )}
+
+        <div className="grid grid-cols-3 gap-3 overflow-y-auto sm:grid-cols-4 md:grid-cols-5" style={{ maxHeight: '60vh' }}>
           {categoria === 'productos' &&
-            productos
+            productosFiltrados
               ?.filter((p) => p.activo)
               .map((p) => (
                 <ProductoCard

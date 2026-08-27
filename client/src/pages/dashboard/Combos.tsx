@@ -34,6 +34,7 @@ import { obtenerProductos, obtenerCombos } from '@/api/catalogo';
 import { crearCombo, actualizarCombo, desactivarCombo, type ItemComboInput } from '@/api/combos';
 import type { Combo } from '@/types';
 import SelectorImagen from '@/components/pos/SelectorImagen';
+import { urlImagen } from '@/lib/config';
 
 interface FormState {
   nombre: string;
@@ -173,6 +174,7 @@ export default function Combos() {
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-12"></TableHead>
             <TableHead>Nombre</TableHead>
             <TableHead>Incluye</TableHead>
             <TableHead className="text-right">Precio</TableHead>
@@ -183,6 +185,19 @@ export default function Combos() {
         <TableBody>
           {combos?.map((combo) => (
             <TableRow key={combo.id}>
+              <TableCell>
+                <div className="h-10 w-10 overflow-hidden rounded-md border bg-muted">
+                  {combo.imagenUrl ? (
+                    <img
+                      src={urlImagen(combo.imagenUrl)}
+                      alt={combo.nombre}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs">🍗</div>
+                  )}
+                </div>
+              </TableCell>
               <TableCell className="font-medium">{combo.nombre}</TableCell>
               <TableCell className="text-sm text-muted-foreground">
                 {combo.items.map((i) => `${i.cantidad}x ${i.producto.nombre}`).join(', ')}

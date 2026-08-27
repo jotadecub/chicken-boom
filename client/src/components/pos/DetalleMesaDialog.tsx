@@ -113,7 +113,7 @@ export default function DetalleMesaDialog({ mesa, open, onOpenChange }: Props) {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[30vh] w-[30vw] max-w-2xl">
           <DialogHeader>
             <DialogTitle>Mesa {mesa.numero}</DialogTitle>
           </DialogHeader>

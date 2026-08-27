@@ -26,13 +26,17 @@ export default function ProductoCard({
     <Card
       onClick={sinStock ? undefined : onClick}
       className={cn(
-        'cursor-pointer overflow-hidden transition-all hover:shadow-md active:scale-95',
+        'cursor-pointer gap-0 overflow-hidden p-0 transition-all hover:shadow-md active:scale-95',
         sinStock && 'cursor-not-allowed opacity-50'
       )}
     >
-      <div className="flex aspect-square items-center justify-center bg-muted">
+      <div className="flex aspect-square w-full items-center justify-center bg-muted">
         {imagenUrl ? (
-          <img src={urlImagen(imagenUrl)} alt={nombre} className="h-full w-full object-cover" />
+          <img
+            src={urlImagen(imagenUrl)}
+            alt={nombre}
+            className="h-full w-full object-cover"
+          />
         ) : (
           <span className="text-4xl">{esCombo ? '🎁' : '🍗'}</span>
         )}
@@ -40,9 +44,7 @@ export default function ProductoCard({
       <CardContent className="p-3">
         <p className="line-clamp-2 text-sm font-medium leading-tight">{nombre}</p>
         <div className="mt-1 flex items-center justify-between">
-          <span className="font-bold text-primary">
-            ${precio.toLocaleString('es-CO')}
-          </span>
+          <span className="font-bold text-primary">${precio.toLocaleString('es-CO')}</span>
           {esCombo && (
             <Badge variant="secondary" className="text-xs">
               Combo
