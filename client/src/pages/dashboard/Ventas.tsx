@@ -28,6 +28,7 @@ import { useCarritoStore } from '@/store/carrito';
 import FiltrosProductos from '@/components/pos/FiltrosProductos';
 import { obtenerCategorias } from '@/api/categorias';
 import { obtenerPromocionesActivas } from '@/api/promociones';
+import { useCarritoConPromociones } from '@/hooks/useCarritoConPromociones';
 
 type Categoria = 'productos' | 'combos';
 
@@ -39,19 +40,20 @@ export default function Ventas() {
   const [categoriaId, setCategoriaId] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
 
-
   const { data: categorias } = useQuery({ queryKey: ['categorias'], queryFn: obtenerCategorias });
 
   const queryClient = useQueryClient();
   const { items, limpiar } = useCarritoStore();
   const agregarProducto = useCarritoStore((s) => s.agregarProducto);
   const agregarCombo = useCarritoStore((s) => s.agregarCombo);
-
+  
   const { data: promociones } = useQuery({
     queryKey: ['promociones-activas'],
     queryFn: obtenerPromocionesActivas,
   });
-
+  
+  const { total, ahorroTotal } = useCarritoConPromociones(promociones);
+  
   const { data: productos, isLoading: cargandoProductos } = useQuery({
     queryKey: ['productos'],
     queryFn: obtenerProductos,
@@ -212,6 +214,19 @@ export default function Ventas() {
                 onChange={(e) => setNombreCliente(e.target.value)}
                 placeholder="Para la factura"
               />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1 rounded-md border p-3">
+            {ahorroTotal > 0 && (
+              <div className="flex items-center justify-between text-sm text-green-600">
+                <span>Ahorro por promociones</span>
+                <span>-${ahorroTotal.toLocaleString('es-CO')}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between text-lg font-bold">
+              <span>Total a cobrar</span>
+              <span>${total.toLocaleString('es-CO')}</span>
             </div>
           </div>
 

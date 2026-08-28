@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useCarritoStore } from '@/store/carrito';
-import { encontrarPromocion, calcularSubtotalConPromocion } from '@/lib/promociones';
+import { useCarritoConPromociones } from '@/hooks/useCarritoConPromociones';
 import { Minus, Plus, Trash2, ShoppingCart, Tag } from 'lucide-react';
 import type { Promocion } from '@/types';
 
@@ -14,24 +14,8 @@ interface Props {
 }
 
 export default function CarritoPanel({ onConfirmar, confirmando, promociones = [] }: Props) {
-  const { items, incrementar, decrementar, quitar } = useCarritoStore();
-
-  const itemsConPromocion = items.map((item) => {
-    const promocion = encontrarPromocion(item, promociones);
-    const subtotalOriginal = item.precioUnitario * item.cantidad;
-    const subtotalConDescuento = calcularSubtotalConPromocion(
-      item.precioUnitario,
-      item.cantidad,
-      promocion
-    );
-    return { ...item, promocion, subtotalOriginal, subtotalConDescuento };
-  });
-
-  const total = itemsConPromocion.reduce((acc, i) => acc + i.subtotalConDescuento, 0);
-  const ahorroTotal = itemsConPromocion.reduce(
-    (acc, i) => acc + (i.subtotalOriginal - i.subtotalConDescuento),
-    0
-  );
+  const { incrementar, decrementar, quitar } = useCarritoStore();
+  const { itemsConPromocion, total, ahorroTotal } = useCarritoConPromociones(promociones);
 
   return (
     <Card className="flex h-full flex-col">
