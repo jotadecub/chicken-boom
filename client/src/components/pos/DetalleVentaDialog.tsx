@@ -18,7 +18,7 @@ export default function DetalleVentaDialog({ venta, onOpenChange }: Props) {
 
   return (
     <Dialog open={!!venta} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto">
+      <DialogContent className="max-h-[90vh] w-[30vw] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             Venta — {new Date(venta.fecha).toLocaleString('es-CO')}

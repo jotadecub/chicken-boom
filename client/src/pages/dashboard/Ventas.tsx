@@ -168,7 +168,7 @@ export default function Ventas() {
       </div>
 
       <Dialog open={dialogAbierto} onOpenChange={setDialogAbierto}>
-        <DialogContent>
+        <DialogContent className="h-max-[90vh] w-[30vw] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Confirmar venta</DialogTitle>
           </DialogHeader>
