@@ -2,17 +2,18 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 
-const promocionSchema = z
-  .object({
-    nombre: z.string().min(1),
-    tipo: z.enum(['DOS_POR_UNO', 'PRECIO_FIJO_COMBO', 'PORCENTAJE', 'MONTO_FIJO']),
-    valor: z.number().positive().optional(),
-    productoId: z.string().uuid().optional(),
-    comboId: z.string().uuid().optional(),
-    categoriaId: z.string().uuid().optional(),
-    fechaInicio: z.coerce.date(),
-    fechaFin: z.coerce.date(),
-  })
+const promocionBaseSchema = z.object({
+  nombre: z.string().min(1),
+  tipo: z.enum(['DOS_POR_UNO', 'PRECIO_FIJO_COMBO', 'PORCENTAJE', 'MONTO_FIJO']),
+  valor: z.number().positive().optional(),
+  productoId: z.string().uuid().nullable().optional(),
+  comboId: z.string().uuid().nullable().optional(),
+  categoriaId: z.string().uuid().nullable().optional(),
+  fechaInicio: z.coerce.date(),
+  fechaFin: z.coerce.date(),
+});
+
+const promocionSchema = promocionBaseSchema
   .refine((data) => data.productoId || data.comboId || data.categoriaId, {
     message: 'La promoción debe aplicar a un producto, combo o categoría',
   })
@@ -22,7 +23,6 @@ const promocionSchema = z
   })
   .refine(
     (data) => {
-      // PRECIO_FIJO_COMBO y PORCENTAJE/MONTO_FIJO requieren un valor numérico
       if (['PRECIO_FIJO_COMBO', 'PORCENTAJE', 'MONTO_FIJO'].includes(data.tipo)) {
         return data.valor !== undefined;
       }
@@ -30,6 +30,8 @@ const promocionSchema = z
     },
     { message: 'Este tipo de promoción requiere un valor', path: ['valor'] }
   );
+
+const actualizarPromocionSchema = promocionBaseSchema.partial();
 
 // GET /api/promociones — lista pública, solo las vigentes hoy
 export async function listarPromocionesActivas(req: Request, res: Response) {
@@ -66,10 +68,31 @@ export async function crearPromocion(req: Request, res: Response) {
 
 // PUT /api/promociones/:id — solo ADMIN
 export async function actualizarPromocion(req: Request, res: Response) {
+  const parsed = actualizarPromocionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Datos inválidos', detalles: parsed.error.flatten() });
+  }
+
+  const datos = parsed.data;
+
+  if (datos.fechaInicio && datos.fechaFin && datos.fechaFin <= datos.fechaInicio) {
+    return res.status(400).json({ error: 'fechaFin debe ser posterior a fechaInicio' });
+  }
+
+  // Si se cambia el tipo hacia uno que requiere valor, exigimos que también venga el valor
+  const tiposConValor = ['PRECIO_FIJO_COMBO', 'PORCENTAJE', 'MONTO_FIJO'];
+  if (datos.tipo && tiposConValor.includes(datos.tipo) && datos.valor === undefined) {
+    const actual = await prisma.promocion.findUnique({ where: { id: req.params.id } });
+    if (!actual?.valor) {
+      return res.status(400).json({ error: 'Este tipo de promoción requiere un valor' });
+    }
+  }
+
   const promocion = await prisma.promocion.update({
     where: { id: req.params.id },
-    data: req.body,
+    data: datos,
   });
+
   return res.json(promocion);
 }
 
