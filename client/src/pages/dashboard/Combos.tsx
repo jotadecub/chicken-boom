@@ -231,7 +231,7 @@ export default function Combos() {
       </Table>
 
       <Dialog open={dialogAbierto} onOpenChange={(open) => !open && cerrarDialogo()}>
-        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+        <DialogContent className="max-h-[90vh] w-[30vw] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{comboEditando ? 'Editar combo' : 'Nuevo combo'}</DialogTitle>
           </DialogHeader>
@@ -255,26 +255,24 @@ export default function Combos() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="precioCombo">Precio del combo</Label>
+              <Input
+                id="precioCombo"
+                type="number"
+                min={0}
+                value={form.precioCombo}
+                onChange={(e) => setForm((f) => ({ ...f, precioCombo: e.target.value }))}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="imagenUrl">Imagen</Label>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="precioCombo">Precio del combo</Label>
-                <Input
-                  id="precioCombo"
-                  type="number"
-                  min={0}
-                  value={form.precioCombo}
-                  onChange={(e) => setForm((f) => ({ ...f, precioCombo: e.target.value }))}
+                <SelectorImagen
+                  valor={form.imagenUrl}
+                  onChange={(url) => setForm((f) => ({ ...f, imagenUrl: url }))}
                 />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="imagenUrl">URL de imagen</Label>
-                <div className="flex flex-col gap-2">
-                  <Label>Imagen</Label>
-                  <SelectorImagen
-                    valor={form.imagenUrl}
-                    onChange={(url) => setForm((f) => ({ ...f, imagenUrl: url }))}
-                  />
-                </div>
               </div>
             </div>
 

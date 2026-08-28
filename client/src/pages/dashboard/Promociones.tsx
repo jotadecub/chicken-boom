@@ -200,7 +200,7 @@ export default function Promociones() {
       </Table>
 
       <Dialog open={dialogAbierto} onOpenChange={(open) => !open && cerrarDialogo()}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] w-[30vw] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nueva promoción</DialogTitle>
           </DialogHeader>

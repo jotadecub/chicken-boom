@@ -121,7 +121,7 @@ export default function Inventario() {
       </Table>
 
       <Dialog open={!!itemEditando} onOpenChange={(open) => !open && setItemEditando(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] w-[30vw] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Ajustar stock — {itemEditando?.producto.nombre}</DialogTitle>
           </DialogHeader>

@@ -169,7 +169,7 @@ export default function Usuarios() {
       </Table>
 
       <Dialog open={dialogAbierto} onOpenChange={(open) => !open && cerrarDialogo()}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] w-[30vw] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{usuarioEditando ? 'Editar usuario' : 'Nuevo usuario'}</DialogTitle>
           </DialogHeader>
