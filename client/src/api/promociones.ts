@@ -12,6 +12,25 @@ export interface CrearPromocionInput {
   fechaFin: string;
 }
 
+export interface ActualizarPromocionInput {
+  nombre?: string;
+  tipo?: TipoPromocion;
+  valor?: number | null;
+  productoId?: string | null;
+  comboId?: string | null;
+  categoriaId?: string | null;
+  fechaInicio?: string;
+  fechaFin?: string;
+}
+
+export async function actualizarPromocion(
+  id: string,
+  input: ActualizarPromocionInput
+): Promise<Promocion> {
+  const { data } = await api.put<Promocion>(`/promociones/${id}`, input);
+  return data;
+}
+
 export async function obtenerTodasLasPromociones(): Promise<Promocion[]> {
   const { data } = await api.get<Promocion[]>('/promociones/todas');
   return data;

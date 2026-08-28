@@ -28,16 +28,17 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { obtenerProductos, obtenerCombos } from '@/api/catalogo';
 import { obtenerCategorias } from '@/api/categorias';
 import {
   obtenerTodasLasPromociones,
   crearPromocion,
+  actualizarPromocion,
   desactivarPromocion,
+  reactivarPromocion,
 } from '@/api/promociones';
-import type { TipoPromocion } from '@/types';
-import { reactivarPromocion } from '@/api/promociones';
+import type { Promocion, TipoPromocion } from '@/types';
 
 type AplicaA = 'producto' | 'combo' | 'categoria';
 
@@ -68,11 +69,16 @@ const FORM_VACIO: FormState = {
   fechaFin: '',
 };
 
+function aFechaInput(iso: string) {
+  return iso.split('T')[0];
+}
+
 export default function Promociones() {
   const [dialogAbierto, setDialogAbierto] = useState(false);
+  const [promocionEditando, setPromocionEditando] = useState<Promocion | null>(null);
   const [form, setForm] = useState<FormState>(FORM_VACIO);
-  const queryClient = useQueryClient();
   const [mostrarDesactivadas, setMostrarDesactivadas] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: promociones, isLoading } = useQuery({
     queryKey: ['promociones-todas'],
@@ -82,17 +88,39 @@ export default function Promociones() {
   const { data: combos } = useQuery({ queryKey: ['combos'], queryFn: obtenerCombos });
   const { data: categorias } = useQuery({ queryKey: ['categorias'], queryFn: obtenerCategorias });
 
-  const mutacionCrear = useMutation({
-    mutationFn: crearPromocion,
+  const mutacionGuardar = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        nombre: form.nombre,
+        tipo: form.tipo as TipoPromocion,
+        valor: form.valor ? Number(form.valor) : undefined,
+        productoId: form.aplicaA === 'producto' ? form.aplicaAId : null,
+        comboId: form.aplicaA === 'combo' ? form.aplicaAId : null,
+        categoriaId: form.aplicaA === 'categoria' ? form.aplicaAId : null,
+        fechaInicio: new Date(`${form.fechaInicio}T00:00:00`).toISOString(),
+        fechaFin: new Date(`${form.fechaFin}T23:59:59`).toISOString(),
+      };
+
+      if (promocionEditando) {
+        return actualizarPromocion(promocionEditando.id, payload);
+      }
+      return crearPromocion({
+        ...payload,
+        productoId: payload.productoId ?? undefined,
+        comboId: payload.comboId ?? undefined,
+        categoriaId: payload.categoriaId ?? undefined,
+      });
+    },
     onSuccess: () => {
-      toast.success('Promoción creada');
+      toast.success(promocionEditando ? 'Promoción actualizada' : 'Promoción creada');
       cerrarDialogo();
       queryClient.invalidateQueries({ queryKey: ['promociones-todas'] });
+      queryClient.invalidateQueries({ queryKey: ['promociones-activas'] });
     },
     onError: (error) => {
       if (axios.isAxiosError(error)) {
         const detalles = error.response?.data?.detalles?.formErrors?.join(', ');
-        toast.error(detalles || error.response?.data?.error || 'Error al crear la promoción');
+        toast.error(detalles || error.response?.data?.error || 'Error al guardar la promoción');
       }
     },
   });
@@ -115,11 +143,34 @@ export default function Promociones() {
 
   function cerrarDialogo() {
     setDialogAbierto(false);
+    setPromocionEditando(null);
     setForm(FORM_VACIO);
   }
 
+  function abrirCrear() {
+    setPromocionEditando(null);
+    setForm(FORM_VACIO);
+    setDialogAbierto(true);
+  }
+
+  function abrirEditar(promo: Promocion) {
+    const aplicaA: AplicaA = promo.productoId ? 'producto' : promo.comboId ? 'combo' : 'categoria';
+    const aplicaAId = promo.productoId || promo.comboId || promo.categoriaId || '';
+
+    setPromocionEditando(promo);
+    setForm({
+      nombre: promo.nombre,
+      tipo: promo.tipo,
+      valor: promo.valor ? String(promo.valor) : '',
+      aplicaA,
+      aplicaAId,
+      fechaInicio: aFechaInput(promo.fechaInicio),
+      fechaFin: aFechaInput(promo.fechaFin),
+    });
+    setDialogAbierto(true);
+  }
+
   const tipoSeleccionado = TIPOS_PROMOCION.find((t) => t.value === form.tipo);
-  const promocionesVisibles = promociones?.filter((p) => mostrarDesactivadas || p.activo);
 
   function handleGuardar() {
     if (!form.nombre.trim() || !form.tipo || !form.aplicaAId || !form.fechaInicio || !form.fechaFin) {
@@ -130,17 +181,7 @@ export default function Promociones() {
       toast.error('Este tipo de promoción requiere un valor');
       return;
     }
-
-    mutacionCrear.mutate({
-      nombre: form.nombre,
-      tipo: form.tipo,
-      valor: form.valor ? Number(form.valor) : undefined,
-      productoId: form.aplicaA === 'producto' ? form.aplicaAId : undefined,
-      comboId: form.aplicaA === 'combo' ? form.aplicaAId : undefined,
-      categoriaId: form.aplicaA === 'categoria' ? form.aplicaAId : undefined,
-      fechaInicio: new Date(`${form.fechaInicio}T00:00:00`).toISOString(),
-      fechaFin: new Date(`${form.fechaFin}T23:59:59`).toISOString(),
-    });
+    mutacionGuardar.mutate();
   }
 
   function opcionesAplicaA() {
@@ -158,19 +199,17 @@ export default function Promociones() {
     return promo.activo && new Date(promo.fechaInicio) <= ahora && new Date(promo.fechaFin) >= ahora;
   }
 
+  const promocionesVisibles = promociones?.filter((p) => mostrarDesactivadas || p.activo);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Promociones</h2>
-        <div className="flex items-center gap-4">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setMostrarDesactivadas((v) => !v)}
-          >
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" onClick={() => setMostrarDesactivadas((v) => !v)}>
             {mostrarDesactivadas ? 'Ocultar desactivadas' : 'Mostrar desactivadas'}
           </Button>
-          <Button onClick={() => setDialogAbierto(true)} className="gap-1">
+          <Button onClick={abrirCrear} className="gap-1">
             <Plus className="h-4 w-4" /> Nueva promoción
           </Button>
         </div>
@@ -204,20 +243,21 @@ export default function Promociones() {
               </TableCell>
               <TableCell className="text-right">
                 {promo.activo ? (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="text-destructive"
-                    onClick={() => mutacionDesactivar.mutate(promo.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <>
+                    <Button size="icon" variant="ghost" onClick={() => abrirEditar(promo)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-destructive"
+                      onClick={() => mutacionDesactivar.mutate(promo.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </>
                 ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => mutacionReactivar.mutate(promo.id)}
-                  >
+                  <Button size="sm" variant="outline" onClick={() => mutacionReactivar.mutate(promo.id)}>
                     Reactivar
                   </Button>
                 )}
@@ -230,7 +270,7 @@ export default function Promociones() {
       <Dialog open={dialogAbierto} onOpenChange={(open) => !open && cerrarDialogo()}>
         <DialogContent className="max-h-[90vh] w-[30vw] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nueva promoción</DialogTitle>
+            <DialogTitle>{promocionEditando ? 'Editar promoción' : 'Nueva promoción'}</DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-col gap-4">
@@ -264,9 +304,7 @@ export default function Promociones() {
 
             {tipoSeleccionado?.requiereValor && (
               <div className="flex flex-col gap-2">
-                <Label>
-                  Valor {form.tipo === 'PORCENTAJE' ? '(%)' : '($)'}
-                </Label>
+                <Label>Valor {form.tipo === 'PORCENTAJE' ? '(%)' : '($)'}</Label>
                 <Input
                   type="number"
                   min={0}
@@ -348,8 +386,8 @@ export default function Promociones() {
             <Button variant="outline" onClick={cerrarDialogo}>
               Cancelar
             </Button>
-            <Button onClick={handleGuardar} disabled={mutacionCrear.isPending}>
-              {mutacionCrear.isPending ? 'Creando...' : 'Crear promoción'}
+            <Button onClick={handleGuardar} disabled={mutacionGuardar.isPending}>
+              {mutacionGuardar.isPending ? 'Guardando...' : promocionEditando ? 'Guardar cambios' : 'Crear promoción'}
             </Button>
           </DialogFooter>
         </DialogContent>
