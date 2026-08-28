@@ -73,6 +73,15 @@ export async function actualizarPromocion(req: Request, res: Response) {
   return res.json(promocion);
 }
 
+// PUT /api/promociones/:id/reactivar — solo ADMIN
+export async function reactivarPromocion(req: Request, res: Response) {
+  const promocion = await prisma.promocion.update({
+    where: { id: req.params.id },
+    data: { activo: true },
+  });
+  return res.json(promocion);
+}
+
 // DELETE /api/promociones/:id — solo ADMIN (desactivar)
 export async function desactivarPromocion(req: Request, res: Response) {
   const promocion = await prisma.promocion.update({
