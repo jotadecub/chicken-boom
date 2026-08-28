@@ -127,8 +127,8 @@ export default function Promociones() {
       productoId: form.aplicaA === 'producto' ? form.aplicaAId : undefined,
       comboId: form.aplicaA === 'combo' ? form.aplicaAId : undefined,
       categoriaId: form.aplicaA === 'categoria' ? form.aplicaAId : undefined,
-      fechaInicio: new Date(form.fechaInicio).toISOString(),
-      fechaFin: new Date(form.fechaFin).toISOString(),
+      fechaInicio: new Date(`${form.fechaInicio}T00:00:00`).toISOString(),
+      fechaFin: new Date(`${form.fechaFin}T23:59:59`).toISOString(),
     });
   }
 

@@ -2,13 +2,14 @@ import { create } from 'zustand';
 import type { Producto, Combo } from '@/types';
 
 export interface ItemCarrito {
-  key: string; // `producto-${id}` o `combo-${id}`, para identificar filas únicas
+  key: string;
   tipo: 'producto' | 'combo';
   id: string;
   nombre: string;
   precioUnitario: number;
   cantidad: number;
   imagenUrl?: string | null;
+  categoriaId?: string | null;
 }
 
 interface CarritoState {
@@ -47,6 +48,7 @@ export const useCarritoStore = create<CarritoState>()((set, get) => ({
             precioUnitario: Number(producto.precio),
             cantidad: 1,
             imagenUrl: producto.imagenUrl,
+            categoriaId: producto.categoriaId,
           },
         ],
       };

@@ -25,3 +25,8 @@ export async function crearPromocion(input: CrearPromocionInput): Promise<Promoc
 export async function desactivarPromocion(id: string): Promise<void> {
   await api.delete(`/promociones/${id}`);
 }
+
+export async function obtenerPromocionesActivas(): Promise<Promocion[]> {
+  const { data } = await api.get<Promocion[]>('/promociones');
+  return data;
+}

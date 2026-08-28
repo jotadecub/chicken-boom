@@ -27,6 +27,7 @@ import { ventaRapidaMostrador } from '@/api/ventas';
 import { useCarritoStore } from '@/store/carrito';
 import FiltrosProductos from '@/components/pos/FiltrosProductos';
 import { obtenerCategorias } from '@/api/categorias';
+import { obtenerPromocionesActivas } from '@/api/promociones';
 
 type Categoria = 'productos' | 'combos';
 
@@ -45,6 +46,11 @@ export default function Ventas() {
   const { items, limpiar } = useCarritoStore();
   const agregarProducto = useCarritoStore((s) => s.agregarProducto);
   const agregarCombo = useCarritoStore((s) => s.agregarCombo);
+
+  const { data: promociones } = useQuery({
+    queryKey: ['promociones-activas'],
+    queryFn: obtenerPromocionesActivas,
+  });
 
   const { data: productos, isLoading: cargandoProductos } = useQuery({
     queryKey: ['productos'],
@@ -164,7 +170,11 @@ export default function Ventas() {
       </div>
 
       <div className="w-80 shrink-0">
-        <CarritoPanel onConfirmar={handleConfirmarPedido} confirmando={mutacionVenta.isPending} />
+        <CarritoPanel
+          onConfirmar={handleConfirmarPedido}
+          confirmando={mutacionVenta.isPending}
+          promociones={promociones}
+        />
       </div>
 
       <Dialog open={dialogAbierto} onOpenChange={setDialogAbierto}>
