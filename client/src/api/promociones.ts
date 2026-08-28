@@ -22,6 +22,11 @@ export async function crearPromocion(input: CrearPromocionInput): Promise<Promoc
   return data;
 }
 
+export async function reactivarPromocion(id: string): Promise<Promocion> {
+  const { data } = await api.put<Promocion>(`/promociones/${id}/reactivar`);
+  return data;
+}
+
 export async function desactivarPromocion(id: string): Promise<void> {
   await api.delete(`/promociones/${id}`);
 }

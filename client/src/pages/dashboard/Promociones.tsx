@@ -37,6 +37,7 @@ import {
   desactivarPromocion,
 } from '@/api/promociones';
 import type { TipoPromocion } from '@/types';
+import { reactivarPromocion } from '@/api/promociones';
 
 type AplicaA = 'producto' | 'combo' | 'categoria';
 
@@ -71,6 +72,7 @@ export default function Promociones() {
   const [dialogAbierto, setDialogAbierto] = useState(false);
   const [form, setForm] = useState<FormState>(FORM_VACIO);
   const queryClient = useQueryClient();
+  const [mostrarDesactivadas, setMostrarDesactivadas] = useState(false);
 
   const { data: promociones, isLoading } = useQuery({
     queryKey: ['promociones-todas'],
@@ -103,12 +105,21 @@ export default function Promociones() {
     },
   });
 
+  const mutacionReactivar = useMutation({
+    mutationFn: reactivarPromocion,
+    onSuccess: () => {
+      toast.success('Promoción reactivada');
+      queryClient.invalidateQueries({ queryKey: ['promociones-todas'] });
+    },
+  });
+
   function cerrarDialogo() {
     setDialogAbierto(false);
     setForm(FORM_VACIO);
   }
 
   const tipoSeleccionado = TIPOS_PROMOCION.find((t) => t.value === form.tipo);
+  const promocionesVisibles = promociones?.filter((p) => mostrarDesactivadas || p.activo);
 
   function handleGuardar() {
     if (!form.nombre.trim() || !form.tipo || !form.aplicaAId || !form.fechaInicio || !form.fechaFin) {
@@ -151,9 +162,18 @@ export default function Promociones() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Promociones</h2>
-        <Button onClick={() => setDialogAbierto(true)} className="gap-1">
-          <Plus className="h-4 w-4" /> Nueva promoción
-        </Button>
+        <div className="flex items-center gap-4">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setMostrarDesactivadas((v) => !v)}
+          >
+            {mostrarDesactivadas ? 'Ocultar desactivadas' : 'Mostrar desactivadas'}
+          </Button>
+          <Button onClick={() => setDialogAbierto(true)} className="gap-1">
+            <Plus className="h-4 w-4" /> Nueva promoción
+          </Button>
+        </div>
       </div>
 
       {isLoading && <p className="text-muted-foreground">Cargando promociones...</p>}
@@ -169,7 +189,7 @@ export default function Promociones() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {promociones?.map((promo) => (
+          {promocionesVisibles?.map((promo) => (
             <TableRow key={promo.id}>
               <TableCell className="font-medium">{promo.nombre}</TableCell>
               <TableCell>{TIPOS_PROMOCION.find((t) => t.value === promo.tipo)?.label}</TableCell>
@@ -183,7 +203,7 @@ export default function Promociones() {
                 </Badge>
               </TableCell>
               <TableCell className="text-right">
-                {promo.activo && (
+                {promo.activo ? (
                   <Button
                     size="icon"
                     variant="ghost"
@@ -191,6 +211,14 @@ export default function Promociones() {
                     onClick={() => mutacionDesactivar.mutate(promo.id)}
                   >
                     <Trash2 className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => mutacionReactivar.mutate(promo.id)}
+                  >
+                    Reactivar
                   </Button>
                 )}
               </TableCell>
