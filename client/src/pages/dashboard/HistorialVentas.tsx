@@ -18,14 +18,21 @@ import { obtenerVentas } from '@/api/ventas';
 import DetalleVentaDialog from '@/components/pos/DetalleVentaDialog';
 import type { Venta } from '@/types';
 
+function fechaLocalISO(fecha: Date) {
+  const año = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+  const dia = String(fecha.getDate()).padStart(2, '0');
+  return `${año}-${mes}-${dia}`;
+}
+
 function hoyISO() {
-  return new Date().toISOString().split('T')[0];
+  return fechaLocalISO(new Date());
 }
 
 function haceDiasISO(dias: number) {
   const fecha = new Date();
   fecha.setDate(fecha.getDate() - dias);
-  return fecha.toISOString().split('T')[0];
+  return fechaLocalISO(fecha);
 }
 
 export default function HistorialVentas() {

@@ -85,7 +85,7 @@ export default function Mesas() {
       )}
 
       <Dialog open={dialogNuevaMesa} onOpenChange={setDialogNuevaMesa}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] w-[30vw] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nueva mesa</DialogTitle>
           </DialogHeader>

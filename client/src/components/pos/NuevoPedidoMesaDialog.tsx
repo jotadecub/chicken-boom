@@ -11,12 +11,13 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import ProductoCard from './ProductoCard';
 import { obtenerProductos, obtenerCombos } from '@/api/catalogo';
 import { crearPedido } from '@/api/pedidos';
 import FiltrosProductos from '@/components/pos/FiltrosProductos';
 import { obtenerCategorias } from '@/api/categorias';
+import { Input } from '@/components/ui/input';
+import { Minus, Plus, X } from 'lucide-react';
 
 interface ItemLocal {
   tipo: 'producto' | 'combo';
@@ -58,6 +59,16 @@ export default function NuevoPedidoMesaDialog({ mesaId, numeroMesa, open, onOpen
     });
   }
 
+  function cambiarCantidad(tipo: string, id: string, cantidad: number) {
+    if (cantidad <= 0) {
+      quitar(tipo, id);
+      return;
+    }
+    setItems((prev) =>
+      prev.map((i) => (i.tipo === tipo && i.id === id ? { ...i, cantidad } : i))
+    );
+  }
+
   function quitar(tipo: string, id: string) {
     setItems((prev) => prev.filter((i) => !(i.tipo === tipo && i.id === id)));
   }
@@ -95,7 +106,7 @@ export default function NuevoPedidoMesaDialog({ mesaId, numeroMesa, open, onOpen
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[80vh] w-[80vw] max-w-4xl flex-col overflow-hidden">
+      <DialogContent className="flex max-h-[90vh] w-[80vw] max-w-4xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Nuevo pedido — Mesa {numeroMesa}</DialogTitle>
         </DialogHeader>
@@ -147,16 +158,46 @@ export default function NuevoPedidoMesaDialog({ mesaId, numeroMesa, open, onOpen
         </div>
 
         {items.length > 0 && (
-          <div className="flex flex-wrap gap-2 border-t pt-3">
-            {items.map((i) => (
-              <Badge
-                key={`${i.tipo}-${i.id}`}
-                variant="secondary"
-                className="cursor-pointer gap-1"
-                onClick={() => quitar(i.tipo, i.id)}
+          <div className="flex flex-col gap-2 border-t pt-3">
+            <p className="text-sm font-medium">Productos en este pedido</p>
+            {items.map((item) => (
+              <div
+                key={`${item.tipo}-${item.id}`}
+                className="flex items-center gap-2 rounded-md border p-2"
               >
-                {i.cantidad}x {i.nombre} ✕
-              </Badge>
+                <span className="flex-1 truncate text-sm">{item.nombre}</span>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-7 w-7"
+                  onClick={() => cambiarCantidad(item.tipo, item.id, item.cantidad - 1)}
+                >
+                  <Minus className="h-3 w-3" />
+                </Button>
+                <Input
+                  type="number"
+                  min={1}
+                  value={item.cantidad}
+                  onChange={(e) => cambiarCantidad(item.tipo, item.id, Number(e.target.value) || 1)}
+                  className="h-7 w-14 text-center"
+                />
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-7 w-7"
+                  onClick={() => cambiarCantidad(item.tipo, item.id, item.cantidad + 1)}
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 text-destructive"
+                  onClick={() => quitar(item.tipo, item.id)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
             ))}
           </div>
         )}
