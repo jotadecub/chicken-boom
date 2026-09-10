@@ -3,117 +3,106 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import ProductoCard from '@/components/pos/ProductoCard';
 import CarritoPanel from '@/components/pos/CarritoPanel';
-import { obtenerProductos, obtenerCombos, obtenerMetodosPago } from '@/api/catalogo';
-import { ventaRapidaMostrador } from '@/api/ventas';
-import { useCarritoStore } from '@/store/carrito';
 import FiltrosProductos from '@/components/pos/FiltrosProductos';
+import ConfirmarPagoDialog from '@/components/pos/ConfirmarPagoDialog';
+import { obtenerProductos, obtenerCombos, obtenerMetodosPago } from '@/api/catalogo';
 import { obtenerCategorias } from '@/api/categorias';
 import { obtenerPromocionesActivas } from '@/api/promociones';
+import { ventaRapidaMostrador } from '@/api/ventas';
+import { crearPedido } from '@/api/pedidos';
+import { useCarritoStore } from '@/store/carrito';
 import { useCarritoConPromociones } from '@/hooks/useCarritoConPromociones';
 
 type Categoria = 'productos' | 'combos';
 
 export default function Ventas() {
   const [categoria, setCategoria] = useState<Categoria>('productos');
-  const [dialogAbierto, setDialogAbierto] = useState(false);
-  const [metodoPagoId, setMetodoPagoId] = useState('');
-  const [nombreCliente, setNombreCliente] = useState('');
   const [categoriaId, setCategoriaId] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
-
-  const { data: categorias } = useQuery({ queryKey: ['categorias'], queryFn: obtenerCategorias });
+  const [dialogPagoAbierto, setDialogPagoAbierto] = useState(false);
 
   const queryClient = useQueryClient();
-  const { items, limpiar } = useCarritoStore();
+  const { limpiar } = useCarritoStore();
   const agregarProducto = useCarritoStore((s) => s.agregarProducto);
   const agregarCombo = useCarritoStore((s) => s.agregarCombo);
-  
-  const { data: promociones } = useQuery({
-    queryKey: ['promociones-activas'],
-    queryFn: obtenerPromocionesActivas,
-  });
-  
-  const { total, ahorroTotal } = useCarritoConPromociones(promociones);
-  
+
   const { data: productos, isLoading: cargandoProductos } = useQuery({
     queryKey: ['productos'],
     queryFn: obtenerProductos,
   });
-
   const { data: combos, isLoading: cargandoCombos } = useQuery({
     queryKey: ['combos'],
     queryFn: obtenerCombos,
   });
-
-  const { data: metodosPago } = useQuery({
-    queryKey: ['metodos-pago'],
-    queryFn: obtenerMetodosPago,
+  const { data: categorias } = useQuery({ queryKey: ['categorias'], queryFn: obtenerCategorias });
+  const { data: metodosPago } = useQuery({ queryKey: ['metodos-pago'], queryFn: obtenerMetodosPago });
+  const { data: promociones } = useQuery({
+    queryKey: ['promociones-activas'],
+    queryFn: obtenerPromocionesActivas,
   });
 
-  const mutacionVenta = useMutation({
+  const { itemsConPromocion, total, ahorroTotal } = useCarritoConPromociones(promociones);
+
+  function refrescarTodo() {
+    queryClient.invalidateQueries({ queryKey: ['productos'] });
+    queryClient.invalidateQueries({ queryKey: ['inventario'] });
+    queryClient.invalidateQueries({ queryKey: ['resumen-ventas'] });
+    queryClient.invalidateQueries({ queryKey: ['pedidos-activos'] });
+  }
+
+  const mutacionVentaRapida = useMutation({
     mutationFn: ventaRapidaMostrador,
     onSuccess: (venta) => {
       toast.success(`Venta registrada: $${Number(venta.total).toLocaleString('es-CO')}`);
       limpiar();
-      setDialogAbierto(false);
-      setNombreCliente('');
-      setMetodoPagoId('');
-      // Refrescamos inventario y resumen porque la venta descontó stock
-      queryClient.invalidateQueries({ queryKey: ['productos'] });
-      queryClient.invalidateQueries({ queryKey: ['inventario'] });
-      queryClient.invalidateQueries({ queryKey: ['resumen-ventas'] });
+      setDialogPagoAbierto(false);
+      refrescarTodo();
     },
     onError: (error) => {
-      if (axios.isAxiosError(error)) {
-        toast.error(error.response?.data?.error ?? 'Error al procesar la venta');
-      } else {
-        toast.error('Error inesperado al procesar la venta');
-      }
+      if (axios.isAxiosError(error)) toast.error(error.response?.data?.error ?? 'Error al procesar la venta');
     },
   });
 
-  function handleConfirmarPedido() {
-    setDialogAbierto(true);
-  }
+  const mutacionGuardarPendiente = useMutation({
+    mutationFn: crearPedido,
+    onSuccess: () => {
+      toast.success('Pedido guardado como pendiente — cóbralo desde "Pedidos pendientes"');
+      limpiar();
+      refrescarTodo();
+    },
+    onError: (error) => {
+      if (axios.isAxiosError(error)) toast.error(error.response?.data?.error ?? 'Error al guardar el pedido');
+    },
+  });
 
-  function handlePagar() {
-    if (!metodoPagoId) {
-      toast.error('Selecciona un método de pago');
+  function handleGuardarPendiente() {
+    if (itemsConPromocion.length === 0) {
+      toast.error('Agrega al menos un producto');
       return;
     }
-
-    mutacionVenta.mutate({
-      items: items.map((i) => ({ tipo: i.tipo, id: i.id, cantidad: i.cantidad })),
-      metodoPagoId,
-      nombreCliente: nombreCliente || undefined,
+    mutacionGuardarPendiente.mutate({
+      tipoEntrega: 'MOSTRADOR',
+      items: itemsConPromocion.map((i) => ({ tipo: i.tipo, id: i.id, cantidad: i.cantidad })),
     });
   }
 
-  const cargando = categoria === 'productos' ? cargandoProductos : cargandoCombos;
+  function handleConfirmarPago(datos: { metodoPagoId: string; nombreCliente?: string }) {
+    mutacionVentaRapida.mutate({
+      items: itemsConPromocion.map((i) => ({ tipo: i.tipo, id: i.id, cantidad: i.cantidad })),
+      metodoPagoId: datos.metodoPagoId,
+      nombreCliente: datos.nombreCliente,
+    });
+  }
 
   const productosFiltrados = productos
     ?.filter((p) => p.activo)
     .filter((p) => !categoriaId || p.categoriaId === categoriaId)
     .filter((p) => p.nombre.toLowerCase().includes(busqueda.toLowerCase()));
+
+  const cargando = categoria === 'productos' ? cargandoProductos : cargandoCombos;
 
   return (
     <div className="flex h-full gap-6">
@@ -128,8 +117,6 @@ export default function Ventas() {
           </Tabs>
         </div>
 
-        {cargando && <p className="text-muted-foreground">Cargando...</p>}
-
         {categoria === 'productos' && (
           <FiltrosProductos
             categorias={categorias ?? []}
@@ -140,20 +127,20 @@ export default function Ventas() {
           />
         )}
 
+        {cargando && <p className="text-muted-foreground">Cargando...</p>}
+
         <div className="grid grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4">
           {categoria === 'productos' &&
-            productosFiltrados
-              ?.filter((p) => p.activo)
-              .map((producto) => (
-                <ProductoCard
-                  key={producto.id}
-                  nombre={producto.nombre}
-                  precio={Number(producto.precio)}
-                  imagenUrl={producto.imagenUrl}
-                  stockDisponible={producto.inventario?.stockActual}
-                  onClick={() => agregarProducto(producto)}
-                />
-              ))}
+            productosFiltrados?.map((producto) => (
+              <ProductoCard
+                key={producto.id}
+                nombre={producto.nombre}
+                precio={Number(producto.precio)}
+                imagenUrl={producto.imagenUrl}
+                stockDisponible={producto.inventario?.stockActual}
+                onClick={() => agregarProducto(producto)}
+              />
+            ))}
 
           {categoria === 'combos' &&
             combos
@@ -171,75 +158,32 @@ export default function Ventas() {
         </div>
       </div>
 
-      <div className="w-80 shrink-0">
+      <div className="flex w-80 shrink-0 flex-col gap-2">
         <CarritoPanel
-          onConfirmar={handleConfirmarPedido}
-          confirmando={mutacionVenta.isPending}
+          onConfirmar={() => setDialogPagoAbierto(true)}
+          confirmando={mutacionVentaRapida.isPending}
           promociones={promociones}
         />
+        <Button
+          variant="outline"
+          className="w-full"
+          disabled={itemsConPromocion.length === 0 || mutacionGuardarPendiente.isPending}
+          onClick={handleGuardarPendiente}
+        >
+          {mutacionGuardarPendiente.isPending ? 'Guardando...' : 'Guardar como pendiente (cobrar después)'}
+        </Button>
       </div>
 
-      <Dialog open={dialogAbierto} onOpenChange={setDialogAbierto}>
-        <DialogContent className="h-max-[90vh] w-[30vw] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Confirmar venta</DialogTitle>
-          </DialogHeader>
-
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="metodoPago">Método de pago</Label>
-              <Select
-                items={metodosPago?.map((mp) => ({ label: mp.nombre, value: mp.id })) ?? []}
-                value={metodoPagoId}
-                onValueChange={(value) => setMetodoPagoId(value ?? '')}
-              >
-                <SelectTrigger id="metodoPago">
-                  <SelectValue placeholder="Selecciona un método" />
-                </SelectTrigger>
-                <SelectContent>
-                  {metodosPago?.map((mp) => (
-                    <SelectItem key={mp.id} value={mp.id}>
-                      {mp.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="cliente">Nombre del cliente (opcional)</Label>
-              <Input
-                id="cliente"
-                value={nombreCliente}
-                onChange={(e) => setNombreCliente(e.target.value)}
-                placeholder="Para la factura"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1 rounded-md border p-3">
-            {ahorroTotal > 0 && (
-              <div className="flex items-center justify-between text-sm text-green-600">
-                <span>Ahorro por promociones</span>
-                <span>-${ahorroTotal.toLocaleString('es-CO')}</span>
-              </div>
-            )}
-            <div className="flex items-center justify-between text-lg font-bold">
-              <span>Total a cobrar</span>
-              <span>${total.toLocaleString('es-CO')}</span>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogAbierto(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handlePagar} disabled={mutacionVenta.isPending}>
-              {mutacionVenta.isPending ? 'Procesando...' : 'Confirmar y cobrar'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmarPagoDialog
+        key={dialogPagoAbierto ? 'abierto' : 'cerrado'}
+        open={dialogPagoAbierto}
+        onOpenChange={setDialogPagoAbierto}
+        total={total}
+        ahorroTotal={ahorroTotal}
+        metodosPago={metodosPago ?? []}
+        procesando={mutacionVentaRapida.isPending}
+        onConfirmar={handleConfirmarPago}
+      />
     </div>
   );
 }

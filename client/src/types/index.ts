@@ -71,7 +71,7 @@ export interface Mesa {
   pedidos?: { id: string; estado: string; creadoEn: string }[];
 }
 
-export type TipoEntrega = 'MESA' | 'MOSTRADOR';
+export type TipoEntrega = 'MESA' | 'MOSTRADOR' | 'DOMICILIO';
 export type EstadoPedido = 'PENDIENTE' | 'EN_PREPARACION' | 'LISTO' | 'ENTREGADO' | 'CANCELADO';
 
 export interface PedidoItem {
@@ -94,6 +94,11 @@ export interface Pedido {
   estado: EstadoPedido;
   usuarioId: string;
   ventaId?: string | null;
+  notaCliente?: string | null;
+  clienteNombre?: string | null;
+  clienteTelefono?: string | null;
+  direccionEntrega?: string | null;
+  costoDomicilio?: string | null;
   creadoEn: string;
   items: PedidoItem[];
   mesa?: Mesa | null;
@@ -113,6 +118,9 @@ export interface Venta {
   nombreCliente?: string | null;
   usuarioId: string;
   metodoPagoId: string;
+  anulada: boolean;
+  motivoAnulacion?: string | null;
+  anuladaEn?: string | null;
   pedidos: Pedido[];
   metodoPago: MetodoPago;
   usuario: { id: string; nombre: string };

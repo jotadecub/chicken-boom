@@ -12,20 +12,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import NuevoPedidoMesaDialog from './NuevoPedidoMesaDialog';
 import { obtenerPedidosActivos, actualizarEstadoPedido } from '@/api/pedidos';
 import { obtenerMetodosPago } from '@/api/catalogo';
 import { crearVenta } from '@/api/ventas';
 import type { Mesa, EstadoPedido } from '@/types';
+import ConfirmarPagoDialog from './ConfirmarPagoDialog';
 
 interface Props {
   mesa: Mesa;
@@ -50,8 +42,6 @@ const SIGUIENTE_ESTADO: Partial<Record<EstadoPedido, EstadoPedido>> = {
 export default function DetalleMesaDialog({ mesa, open, onOpenChange }: Props) {
   const [nuevoPedidoAbierto, setNuevoPedidoAbierto] = useState(false);
   const [cobrandoAbierto, setCobrandoAbierto] = useState(false);
-  const [metodoPagoId, setMetodoPagoId] = useState('');
-  const [nombreCliente, setNombreCliente] = useState('');
   const queryClient = useQueryClient();
 
   const { data: pedidos } = useQuery({
@@ -81,8 +71,6 @@ export default function DetalleMesaDialog({ mesa, open, onOpenChange }: Props) {
     onSuccess: (venta) => {
       toast.success(`Cuenta cobrada: $${Number(venta.total).toLocaleString('es-CO')}`);
       setCobrandoAbierto(false);
-      setMetodoPagoId('');
-      setNombreCliente('');
       onOpenChange(false);
       queryClient.invalidateQueries({ queryKey: ['mesas'] });
       queryClient.invalidateQueries({ queryKey: ['pedidos-activos'] });
@@ -97,18 +85,6 @@ export default function DetalleMesaDialog({ mesa, open, onOpenChange }: Props) {
     (acc, p) => acc + p.items.reduce((s, i) => s + Number(i.subtotal), 0),
     0
   );
-
-  function handleCobrar() {
-    if (!metodoPagoId) {
-      toast.error('Selecciona un método de pago');
-      return;
-    }
-    mutacionCobrar.mutate({
-      pedidoIds: (pedidos ?? []).map((p) => p.id),
-      metodoPagoId,
-      nombreCliente: nombreCliente || undefined,
-    });
-  }
 
   return (
     <>
@@ -206,54 +182,22 @@ export default function DetalleMesaDialog({ mesa, open, onOpenChange }: Props) {
         onOpenChange={setNuevoPedidoAbierto}
       />
 
-      <Dialog open={cobrandoAbierto} onOpenChange={setCobrandoAbierto}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cobrar Mesa {mesa.numero}</DialogTitle>
-          </DialogHeader>
-
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label>Método de pago</Label>
-              <Select
-                items={metodosPago?.map((mp) => ({ label: mp.nombre, value: mp.id })) ?? []}
-                value={metodoPagoId}
-                onValueChange={(v) => setMetodoPagoId(v ?? '')}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un método" />
-                </SelectTrigger>
-                <SelectContent>
-                  {metodosPago?.map((mp) => (
-                    <SelectItem key={mp.id} value={mp.id}>
-                      {mp.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label>Nombre del cliente (opcional)</Label>
-              <Input value={nombreCliente} onChange={(e) => setNombreCliente(e.target.value)} />
-            </div>
-
-            <div className="flex justify-between text-lg font-bold">
-              <span>Total a cobrar</span>
-              <span>${totalCuenta.toLocaleString('es-CO')}</span>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCobrandoAbierto(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCobrar} disabled={mutacionCobrar.isPending}>
-              {mutacionCobrar.isPending ? 'Procesando...' : 'Confirmar cobro'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmarPagoDialog
+        key={cobrandoAbierto ? mesa.id : 'cerrado'}
+        open={cobrandoAbierto}
+        onOpenChange={setCobrandoAbierto}
+        titulo={`Cobrar Mesa ${mesa.numero}`}
+        total={totalCuenta}
+        metodosPago={metodosPago ?? []}
+        procesando={mutacionCobrar.isPending}
+        onConfirmar={(datos) =>
+          mutacionCobrar.mutate({
+            pedidoIds: (pedidos ?? []).map((p) => p.id),
+            metodoPagoId: datos.metodoPagoId,
+            nombreCliente: datos.nombreCliente,
+          })
+        }
+      />
     </>
   );
 }

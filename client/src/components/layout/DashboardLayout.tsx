@@ -15,10 +15,12 @@ import {
   History,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
 } from 'lucide-react';
 
 const navItems = [
   { to: '/dashboard/ventas', label: 'Ventas', icon: ShoppingCart, soloAdmin: false },
+  { to: '/dashboard/pendientes', label: 'Pendientes', icon: ClipboardList, soloAdmin: false },
   { to: '/dashboard/mesas', label: 'Mesas', icon: Table2, soloAdmin: false },
   { to: '/dashboard/historial', label: 'Historial', icon: History, soloAdmin: true },
   { to: '/dashboard/inventario', label: 'Inventario', icon: Package, soloAdmin: false },

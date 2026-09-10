@@ -17,6 +17,20 @@ import { Eye } from 'lucide-react';
 import { obtenerVentas } from '@/api/ventas';
 import DetalleVentaDialog from '@/components/pos/DetalleVentaDialog';
 import type { Venta } from '@/types';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Ban } from 'lucide-react';
+import { anularVenta } from '@/api/ventas';
+import { useAuthStore } from '@/store/auth';
 
 function fechaLocalISO(fecha: Date) {
   const año = fecha.getFullYear();
@@ -36,6 +50,25 @@ function haceDiasISO(dias: number) {
 }
 
 export default function HistorialVentas() {
+  const [ventaParaAnular, setVentaParaAnular] = useState<Venta | null>(null);
+  const [motivoAnulacion, setMotivoAnulacion] = useState('');
+  const usuario = useAuthStore((s) => s.usuario);
+  const queryClient = useQueryClient();
+
+  const mutacionAnular = useMutation({
+    mutationFn: ({ id, motivo }: { id: string; motivo: string }) => anularVenta(id, motivo),
+    onSuccess: () => {
+      toast.success('Venta anulada, stock devuelto al inventario');
+      setVentaParaAnular(null);
+      setMotivoAnulacion('');
+      queryClient.invalidateQueries({ queryKey: ['ventas-historial'] });
+      queryClient.invalidateQueries({ queryKey: ['inventario'] });
+    },
+    onError: (error) => {
+      if (axios.isAxiosError(error)) toast.error(error.response?.data?.error ?? 'Error al anular');
+    },
+  });
+  
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
   const [ventaSeleccionada, setVentaSeleccionada] = useState<Venta | null>(null);
@@ -49,7 +82,7 @@ export default function HistorialVentas() {
       }),
   });
 
-  const totalRecaudado = ventas?.reduce((acc, v) => acc + Number(v.total), 0) ?? 0;
+  const totalRecaudado = ventas?.filter((v) => !v.anulada).reduce((acc, v) => acc + Number(v.total), 0) ?? 0;
 
   function filtrarHoy() {
     setFechaInicio(hoyISO());
@@ -137,6 +170,9 @@ export default function HistorialVentas() {
             <TableHead>Vendedor</TableHead>
             <TableHead className="text-right">Total</TableHead>
             <TableHead className="text-right">Detalle</TableHead>
+            <TableHead>Estado</TableHead>
+            <TableHead className="text-right">Total</TableHead>
+            <TableHead className="text-right">Acciones</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -159,6 +195,33 @@ export default function HistorialVentas() {
                   <Eye className="h-4 w-4" />
                 </Button>
               </TableCell>
+              <TableCell>
+                {venta.anulada ? (
+                  <Badge variant="destructive">Anulada</Badge>
+                ) : (
+                  <Badge variant="secondary">Válida</Badge>
+                )}
+              </TableCell>
+              <TableCell className="text-right font-medium">
+                <span className={venta.anulada ? 'text-muted-foreground line-through' : ''}>
+                  ${Number(venta.total).toLocaleString('es-CO')}
+                </span>
+              </TableCell>
+              <TableCell className="text-right">
+                <Button size="icon" variant="ghost" onClick={() => setVentaSeleccionada(venta)}>
+                  <Eye className="h-4 w-4" />
+                </Button>
+                {usuario?.rol === 'ADMIN' && !venta.anulada && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="text-destructive"
+                    onClick={() => setVentaParaAnular(venta)}
+                  >
+                    <Ban className="h-4 w-4" />
+                  </Button>
+                )}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -174,6 +237,41 @@ export default function HistorialVentas() {
         venta={ventaSeleccionada}
         onOpenChange={(open) => !open && setVentaSeleccionada(null)}
       />
+
+      <Dialog open={!!ventaParaAnular} onOpenChange={(open) => !open && setVentaParaAnular(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Anular venta</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Esto devolverá el stock al inventario y cancelará los pedidos asociados. Esta acción no se
+            puede deshacer.
+          </p>
+          <div className="flex flex-col gap-2">
+            <Label>Motivo (opcional)</Label>
+            <Textarea
+              value={motivoAnulacion}
+              onChange={(e) => setMotivoAnulacion(e.target.value)}
+              placeholder="Ej: Cliente se retractó, error de facturación..."
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVentaParaAnular(null)}>
+              Cerrar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={mutacionAnular.isPending}
+              onClick={() =>
+                ventaParaAnular &&
+                mutacionAnular.mutate({ id: ventaParaAnular.id, motivo: motivoAnulacion })
+              }
+            >
+              {mutacionAnular.isPending ? 'Anulando...' : 'Confirmar anulación'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

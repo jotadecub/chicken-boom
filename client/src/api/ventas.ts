@@ -40,3 +40,8 @@ export async function obtenerResumenVentasHoy(): Promise<{
   const { data } = await api.get('/ventas/resumen');
   return data;
 }
+
+export async function anularVenta(id: string, motivo?: string): Promise<Venta> {
+  const { data } = await api.post<Venta>(`/ventas/${id}/anular`, { motivo });
+  return data;
+}
