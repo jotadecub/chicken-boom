@@ -148,6 +148,7 @@ model Mesa {
 enum TipoEntrega {
   MESA
   MOSTRADOR
+  DOMICILIO
 }
 
 enum EstadoPedido {
@@ -159,13 +160,18 @@ enum EstadoPedido {
 }
 
 model Pedido {
-  id          String       @id @default(uuid())
-  mesaId      String?      @map("mesa_id")
-  tipoEntrega TipoEntrega  @map("tipo_entrega")
-  estado      EstadoPedido @default(PENDIENTE)
-  usuarioId   String       @map("usuario_id")
-  ventaId     String?      @map("venta_id")
-  creadoEn    DateTime     @default(now()) @map("creado_en")
+  id               String       @id @default(uuid())
+  mesaId           String?      @map("mesa_id")
+  tipoEntrega      TipoEntrega  @map("tipo_entrega")
+  estado           EstadoPedido @default(PENDIENTE)
+  usuarioId        String       @map("usuario_id")
+  ventaId          String?      @map("venta_id")
+  notaCliente      String?      @map("nota_cliente")
+  clienteNombre    String?      @map("cliente_nombre")
+  clienteTelefono  String?      @map("cliente_telefono")
+  direccionEntrega String?      @map("direccion_entrega")
+  costoDomicilio   Decimal?     @db.Decimal(10, 2) @map("costo_domicilio")
+  creadoEn         DateTime     @default(now()) @map("creado_en")
 
   mesa    Mesa?        @relation(fields: [mesaId], references: [id])
   usuario Usuario      @relation(fields: [usuarioId], references: [id])
@@ -206,12 +212,15 @@ model MetodoPago {
 }
 
 model Venta {
-  id            String   @id @default(uuid())
-  fecha         DateTime @default(now())
-  total         Decimal  @db.Decimal(10, 2)
-  nombreCliente String?  @map("nombre_cliente")
-  usuarioId     String   @map("usuario_id")
-  metodoPagoId  String   @map("metodo_pago_id")
+  id              String    @id @default(uuid())
+  fecha           DateTime  @default(now())
+  total           Decimal   @db.Decimal(10, 2)
+  nombreCliente   String?   @map("nombre_cliente")
+  usuarioId       String    @map("usuario_id")
+  metodoPagoId    String    @map("metodo_pago_id")
+  anulada         Boolean   @default(false)
+  motivoAnulacion String?   @map("motivo_anulacion")
+  anuladaEn       DateTime? @map("anulada_en")
 
   usuario    Usuario    @relation(fields: [usuarioId], references: [id])
   metodoPago MetodoPago @relation(fields: [metodoPagoId], references: [id])

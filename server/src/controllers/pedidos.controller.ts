@@ -12,22 +12,41 @@ const itemPedidoSchema = z.object({
 
 const crearPedidoSchema = z
   .object({
-    tipoEntrega: z.enum(['MESA', 'MOSTRADOR']),
+    tipoEntrega: z.enum(['MESA', 'MOSTRADOR', 'DOMICILIO']),
     mesaId: z.string().uuid().optional(),
+    notaCliente: z.string().optional(),
+    clienteNombre: z.string().optional(),
+    clienteTelefono: z.string().optional(),
+    direccionEntrega: z.string().optional(),
+    costoDomicilio: z.number().nonnegative().optional(),
     items: z.array(itemPedidoSchema).min(1, 'El pedido debe tener al menos un ítem'),
   })
   .refine((data) => data.tipoEntrega !== 'MESA' || data.mesaId, {
     message: 'mesaId es requerido cuando tipoEntrega es MESA',
     path: ['mesaId'],
-  });
+  })
+  .refine(
+    (data) =>
+      data.tipoEntrega !== 'DOMICILIO' ||
+      (data.clienteNombre && data.clienteTelefono && data.direccionEntrega && data.costoDomicilio !== undefined),
+    {
+      message: 'Los domicilios requieren nombre, teléfono, dirección y costo de envío',
+      path: ['direccionEntrega'],
+    }
+  );
 
 const actualizarEstadoSchema = z.object({
   estado: z.enum(['PENDIENTE', 'EN_PREPARACION', 'LISTO', 'ENTREGADO', 'CANCELADO']),
 });
 
 interface DatosCrearPedido {
-  tipoEntrega: 'MESA' | 'MOSTRADOR';
+  tipoEntrega: 'MESA' | 'MOSTRADOR' | 'DOMICILIO';
   mesaId?: string;
+  notaCliente?: string;
+  clienteNombre?: string;
+  clienteTelefono?: string;
+  direccionEntrega?: string;
+  costoDomicilio?: number;
   items: { tipo: 'producto' | 'combo'; id: string; cantidad: number }[];
   usuarioId: string;
 }
@@ -123,6 +142,11 @@ export async function crearPedidoInterno(datos: DatosCrearPedido) {
       data: {
         tipoEntrega,
         mesaId: mesaId ?? null,
+        notaCliente: datos.notaCliente,
+        clienteNombre: datos.clienteNombre,
+        clienteTelefono: datos.clienteTelefono,
+        direccionEntrega: datos.direccionEntrega,
+        costoDomicilio: datos.costoDomicilio,
         usuarioId,
         items: { createMany: { data: detalles } },
       },

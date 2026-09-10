@@ -51,7 +51,8 @@ async function crearVentaInterna(datos: {
     }
 
     const total = pedidos.reduce(
-      (acc, p) => acc + p.items.reduce((s, i) => s + Number(i.subtotal), 0),
+      (acc, p) =>
+        acc + p.items.reduce((s, i) => s + Number(i.subtotal), 0) + Number(p.costoDomicilio ?? 0),
       0
     );
 
@@ -158,7 +159,7 @@ export async function resumenVentasHoy(req: Request, res: Response) {
   inicioDia.setHours(0, 0, 0, 0);
 
   const ventasHoy = await prisma.venta.findMany({
-    where: { fecha: { gte: inicioDia } },
+    where: { fecha: { gte: inicioDia }, anulada: false },
     select: { total: true },
   });
 
@@ -169,4 +170,60 @@ export async function resumenVentasHoy(req: Request, res: Response) {
     totalVentas: ventasHoy.length,
     totalRecaudado: totalHoy,
   });
+}
+
+// POST /api/ventas/:id/anular — solo ADMIN. Revierte stock, cancela pedidos, marca la venta como anulada.
+export async function anularVenta(req: Request, res: Response) {
+  const { motivo } = req.body as { motivo?: string };
+
+  try {
+    const venta = await prisma.$transaction(async (tx) => {
+      const ventaActual = await tx.venta.findUnique({
+        where: { id: req.params.id },
+        include: { pedidos: { include: { items: true } } },
+      });
+
+      if (!ventaActual) throw new Error('Venta no encontrada');
+      if (ventaActual.anulada) throw new Error('Esta venta ya fue anulada anteriormente');
+
+      for (const pedido of ventaActual.pedidos) {
+        for (const item of pedido.items) {
+          if (item.productoId) {
+            await tx.inventario.update({
+              where: { productoId: item.productoId },
+              data: { stockActual: { increment: item.cantidad } },
+            });
+          } else if (item.comboId) {
+            const comboItems = await tx.comboItem.findMany({ where: { comboId: item.comboId } });
+            for (const ci of comboItems) {
+              await tx.inventario.update({
+                where: { productoId: ci.productoId },
+                data: { stockActual: { increment: ci.cantidad * item.cantidad } },
+              });
+            }
+          }
+        }
+
+        await tx.pedido.update({
+          where: { id: pedido.id },
+          data: { estado: 'CANCELADO', ventaId: null },
+        });
+      }
+
+      return tx.venta.update({
+        where: { id: req.params.id },
+        data: { anulada: true, motivoAnulacion: motivo, anuladaEn: new Date() },
+        include: {
+          pedidos: { include: { items: { include: { producto: true, combo: true } }, mesa: true } },
+          metodoPago: true,
+          usuario: { select: { id: true, nombre: true } },
+        },
+      });
+    });
+
+    return res.json(venta);
+  } catch (error) {
+    const mensaje = error instanceof Error ? error.message : 'Error al anular la venta';
+    return res.status(400).json({ error: mensaje });
+  }
 }
