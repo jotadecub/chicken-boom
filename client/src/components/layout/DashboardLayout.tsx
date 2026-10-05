@@ -16,9 +16,11 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Wallet,
 } from 'lucide-react';
 
 const navItems = [
+  { to: '/dashboard/caja', label: 'Caja', icon: Wallet, soloAdmin: false },
   { to: '/dashboard/ventas', label: 'Ventas', icon: ShoppingCart, soloAdmin: false },
   { to: '/dashboard/pendientes', label: 'Pendientes', icon: ClipboardList, soloAdmin: false },
   { to: '/dashboard/mesas', label: 'Mesas', icon: Table2, soloAdmin: false },
