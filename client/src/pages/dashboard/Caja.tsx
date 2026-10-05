@@ -171,7 +171,7 @@ export default function Caja() {
       </p>
 
       <Dialog open={dialogCierreAbierto} onOpenChange={setDialogCierreAbierto}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-h-[90vh] w-[30vw] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Cerrar caja</DialogTitle>
           </DialogHeader>
