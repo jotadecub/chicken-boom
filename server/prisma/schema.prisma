@@ -25,6 +25,7 @@ model Usuario {
 
   ventas  Venta[]
   pedidos Pedido[]
+  turnosCaja TurnoCaja[]
 
   @@map("usuarios")
 }
@@ -221,10 +222,29 @@ model Venta {
   anulada         Boolean   @default(false)
   motivoAnulacion String?   @map("motivo_anulacion")
   anuladaEn       DateTime? @map("anulada_en")
+  turnoCajaId     String?   @map("turno_caja_id")
 
   usuario    Usuario    @relation(fields: [usuarioId], references: [id])
   metodoPago MetodoPago @relation(fields: [metodoPagoId], references: [id])
+  turnoCaja TurnoCaja? @relation(fields: [turnoCajaId], references: [id])
   pedidos    Pedido[]
 
   @@map("ventas")
+}
+
+// ---------- Cierre de caja ----------
+
+model TurnoCaja {
+  id            String    @id @default(uuid())
+  usuarioId     String    @map("usuario_id")
+  fechaApertura DateTime  @default(now()) @map("fecha_apertura")
+  fechaCierre   DateTime? @map("fecha_cierre")
+  montoInicial  Decimal   @db.Decimal(10, 2) @map("monto_inicial")
+  montoContado  Decimal?  @db.Decimal(10, 2) @map("monto_contado")
+  observaciones String?
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+  ventas  Venta[]
+
+  @@map("turnos_caja")
 }

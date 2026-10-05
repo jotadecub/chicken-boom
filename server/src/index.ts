@@ -14,6 +14,7 @@ import mesasRoutes from './routes/mesas.routes'
 import pedidosRoutes from './routes/pedidos.routes';
 import categoriasRoutes from './routes/categorias.routes'
 import imagenesRoutes from './routes/imagenes.routes';
+import turnosCajaRoutes from './routes/turnosCaja.routes';
 
 dotenv.config();
 
@@ -54,6 +55,9 @@ app.use('/api/ventas', ventasRoutes);
 // Mesas y pedidos
 app.use('/api/mesas', mesasRoutes);
 app.use('/api/pedidos', pedidosRoutes);
+
+// Turnos de caja
+app.use('/api/turnos-caja', turnosCajaRoutes);
 
 const PORT = process.env.PORT || 4000;
 

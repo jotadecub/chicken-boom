@@ -33,6 +33,8 @@ async function crearVentaInterna(datos: {
   const { pedidoIds, metodoPagoId, nombreCliente, usuarioId } = datos;
 
   return prisma.$transaction(async (tx) => {
+    const turnoActivo = await tx.turnoCaja.findFirst({ where: { fechaCierre: null } });
+
     const pedidos = await tx.pedido.findMany({
       where: { id: { in: pedidoIds } },
       include: { items: true },
@@ -57,7 +59,7 @@ async function crearVentaInterna(datos: {
     );
 
     const nuevaVenta = await tx.venta.create({
-      data: { total, nombreCliente, usuarioId, metodoPagoId },
+      data: { total, nombreCliente, usuarioId, metodoPagoId, turnoCajaId: turnoActivo?.id },
     });
 
     const mesasAfectadas = new Set(pedidos.filter((p) => p.mesaId).map((p) => p.mesaId as string));
