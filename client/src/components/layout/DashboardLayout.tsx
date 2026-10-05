@@ -24,12 +24,12 @@ const navItems = [
   { to: '/dashboard/ventas', label: 'Ventas', icon: ShoppingCart, soloAdmin: false },
   { to: '/dashboard/pendientes', label: 'Pendientes', icon: ClipboardList, soloAdmin: false },
   { to: '/dashboard/mesas', label: 'Mesas', icon: Table2, soloAdmin: false },
-  { to: '/dashboard/historial', label: 'Historial', icon: History, soloAdmin: true },
-  { to: '/dashboard/inventario', label: 'Inventario', icon: Package, soloAdmin: false },
-  { to: '/dashboard/productos', label: 'Productos', icon: Tag, soloAdmin: true },
   { to: '/dashboard/combos', label: 'Combos', icon: Package2, soloAdmin: true },
   { to: '/dashboard/promociones', label: 'Promociones', icon: Gift, soloAdmin: true },
+  { to: '/dashboard/inventario', label: 'Inventario', icon: Package, soloAdmin: false },
+  { to: '/dashboard/productos', label: 'Productos', icon: Tag, soloAdmin: true },
   { to: '/dashboard/usuarios', label: 'Usuarios', icon: Users, soloAdmin: true },
+  { to: '/dashboard/historial', label: 'Historial', icon: History, soloAdmin: true },
 ];
 
 export default function DashboardLayout() {

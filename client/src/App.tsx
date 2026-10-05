@@ -29,6 +29,7 @@ export default function App() {
               <Route path="/dashboard/ventas" element={<Ventas />} />
               <Route path="/dashboard/mesas" element={<Mesas />} />
               <Route path="/dashboard/inventario" element={<Inventario />} />
+              <Route path="/dashboard/caja" element={<Caja />} />
 
               <Route element={<ProtectedRoute rolesPermitidos={['ADMIN']} />}>
                 <Route path="/dashboard/pendientes" element={<PedidosPendientes />} />
@@ -37,7 +38,6 @@ export default function App() {
                 <Route path="/dashboard/promociones" element={<Promociones />} />
                 <Route path="/dashboard/usuarios" element={<Usuarios />} />
                 <Route path="/dashboard/historial" element={<HistorialVentas />} />
-                <Route path="/dashboard/caja" element={<Caja />} />
               </Route>
             </Route>
           </Route>
